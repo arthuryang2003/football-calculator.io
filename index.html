@@ -14,6 +14,7 @@
       --accent: #2563eb;
       --danger: #b91c1c;
       --ok: #047857;
+      --warn: #b45309;
       --shadow: 0 10px 30px rgba(0,0,0,.08);
       --radius: 18px;
     }
@@ -27,7 +28,7 @@
       line-height: 1.45;
     }
     .wrap {
-      max-width: 980px;
+      max-width: 1080px;
       margin: 0 auto;
       padding: 18px 14px 40px;
     }
@@ -116,7 +117,7 @@
     button:active { transform: translateY(1px); }
     .summary {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 10px;
     }
     .stat {
@@ -136,6 +137,7 @@
     }
     .positive { color: var(--ok); }
     .negative { color: var(--danger); }
+    .warning { color: var(--warn); }
     .table-wrap {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
@@ -145,7 +147,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 860px;
+      min-width: 980px;
       background: #fff;
     }
     th, td {
@@ -187,6 +189,12 @@
       margin-top: 10px;
       display: none;
     }
+    .notice {
+      color: var(--warn);
+      font-size: 13px;
+      margin-top: 8px;
+      display: none;
+    }
     .badge {
       display: inline-block;
       padding: 2px 7px;
@@ -197,7 +205,12 @@
       margin-left: 4px;
       white-space: nowrap;
     }
-    @media (max-width: 760px) {
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+    }
+    @media (max-width: 860px) {
       h1 { font-size: 21px; }
       .matches { grid-template-columns: 1fr; }
       .stake-row { grid-template-columns: 1fr; }
@@ -211,19 +224,21 @@
   <div class="wrap">
     <header>
       <h1>三场两结果 8注3串1计算器</h1>
-      <p class="sub">输入三场比赛的主队、客队和胜/平/负赔率，自动选择每场赔率最低的两个结果，并按“反赔率配比”计算 8 注 3 串 1 的购买金额。</p>
+      <p class="sub">输入三场比赛的主队、客队和胜/平/负赔率，自动选择每场赔率最低的两个结果，并按“2元=1注”的整数注数分配 8 注 3 串 1。</p>
     </header>
 
     <section class="card">
       <div class="stake-row">
         <div>
-          <label for="stake">总投入金额</label>
-          <input id="stake" type="number" inputmode="decimal" value="1000" min="0" step="0.01">
+          <label for="stake">预算金额</label>
+          <input id="stake" type="number" inputmode="decimal" value="1000" min="0" step="2">
+          <div class="small">实际投入会自动向下取为 2 元的整数倍。</div>
         </div>
         <button id="calcBtn">计算</button>
         <button id="copyBtn" class="secondary">复制清单</button>
       </div>
       <div class="error" id="errorBox"></div>
+      <div class="notice" id="noticeBox"></div>
     </section>
 
     <section class="card">
@@ -233,23 +248,27 @@
     <section class="card">
       <div class="summary">
         <div class="stat">
-          <div class="name">总投入</div>
+          <div class="name">实际投入</div>
           <div class="value" id="sStake">-</div>
         </div>
         <div class="stat">
-          <div class="name">理论固定返还</div>
-          <div class="value" id="sReturn">-</div>
+          <div class="name">总注数</div>
+          <div class="value" id="sUnits">-</div>
         </div>
         <div class="stat">
-          <div class="name">理论净收益</div>
-          <div class="value" id="sProfit">-</div>
+          <div class="name">取整后最低返还</div>
+          <div class="value" id="sMinReturn">-</div>
         </div>
         <div class="stat">
-          <div class="name">理论收益率</div>
-          <div class="value" id="sRate">-</div>
+          <div class="name">最低净收益</div>
+          <div class="value" id="sMinProfit">-</div>
+        </div>
+        <div class="stat">
+          <div class="name">最低收益率</div>
+          <div class="value" id="sMinRate">-</div>
         </div>
       </div>
-      <p class="tips">提示：“胜”表示主队胜，“负”表示客队胜。这里的固定返还只在三场实际结果都落在各自选中的两个结果中时成立；任意一场打出第三个结果，8 注都会失效。</p>
+      <p class="tips">提示：“胜”表示主队胜，“负”表示客队胜。由于每注必须是 2 元，取整后不同结果的返还可能略有差异；表格中会显示每注的命中返还。</p>
     </section>
 
     <section class="card">
@@ -262,6 +281,7 @@
               <th>比赛</th>
               <th>组合</th>
               <th>串关赔率</th>
+              <th>买几注</th>
               <th>购买金额</th>
               <th>命中返还</th>
               <th>净收益</th>
@@ -283,6 +303,7 @@ const outcomeNames = [
 const matchesEl = document.getElementById("matches");
 const tbody = document.getElementById("tbody");
 const errorBox = document.getElementById("errorBox");
+const noticeBox = document.getElementById("noticeBox");
 let latestText = "";
 
 function fmtMoney(x) {
@@ -383,12 +404,68 @@ function cartesian(arrays) {
   }, [[]]);
 }
 
+function allocateUnits(combos, totalUnits) {
+  if (totalUnits < combos.length) {
+    throw new Error(`预算至少需要 ${combos.length * 2} 元，才能保证 8 个组合每个至少买 1 注。`);
+  }
+
+  const invSum = combos.reduce((s, c) => s + c.inv, 0);
+
+  // 理论注数：先按照反赔率比例计算，再加上“每个组合至少1注”的现实约束。
+  for (const c of combos) {
+    c.idealUnits = totalUnits * c.inv / invSum;
+  }
+
+  combos.forEach(c => c.units = 1);
+  let remaining = totalUnits - combos.length;
+
+  const extraQuotas = combos.map(c => Math.max(c.idealUnits - 1, 0));
+  const extraQuotaSum = extraQuotas.reduce((s, x) => s + x, 0);
+
+  const extras = combos.map((c, idx) => {
+    const quota = extraQuotaSum > 0 ? remaining * extraQuotas[idx] / extraQuotaSum : remaining / combos.length;
+    return {
+      idx,
+      floor: Math.floor(quota),
+      frac: quota - Math.floor(quota),
+    };
+  });
+
+  let usedExtra = 0;
+  for (const e of extras) {
+    combos[e.idx].units += e.floor;
+    usedExtra += e.floor;
+  }
+
+  let left = remaining - usedExtra;
+  extras.sort((a, b) => b.frac - a.frac);
+  for (let i = 0; i < left; i++) {
+    combos[extras[i % extras.length].idx].units += 1;
+  }
+
+  for (const c of combos) {
+    c.amount = c.units * 2;
+  }
+
+  return combos;
+}
+
 function calculate() {
   try {
     errorBox.style.display = "none";
-    const stake = parseFloat(document.getElementById("stake").value);
-    if (!Number.isFinite(stake) || stake <= 0) {
-      throw new Error("请填写大于 0 的总投入金额。");
+    noticeBox.style.display = "none";
+
+    const budget = parseFloat(document.getElementById("stake").value);
+    if (!Number.isFinite(budget) || budget <= 0) {
+      throw new Error("请填写大于 0 的预算金额。");
+    }
+
+    const totalUnits = Math.floor(budget / 2);
+    const actualStake = totalUnits * 2;
+
+    if (actualStake < budget) {
+      noticeBox.textContent = `预算 ￥${fmtMoney(budget)} 不是 2 元整数倍，已按实际可购买金额 ￥${fmtMoney(actualStake)} 计算。`;
+      noticeBox.style.display = "block";
     }
 
     const { selectedByMatch, matchLabels } = readOdds();
@@ -407,44 +484,46 @@ function calculate() {
     });
 
     const invSum = combos.reduce((s, c) => s + c.inv, 0);
-    const fixedReturn = stake / invSum;
-    let roundedSum = 0;
+    const idealFixedReturn = actualStake / invSum;
 
-    combos.forEach((c, idx) => {
-      c.rawAmount = fixedReturn / c.odds;
-      c.amount = Math.round(c.rawAmount * 100) / 100;
-      if (idx < combos.length - 1) roundedSum += c.amount;
-    });
-    combos[combos.length - 1].amount = Math.round((stake - roundedSum) * 100) / 100;
+    allocateUnits(combos, totalUnits);
 
     tbody.innerHTML = "";
     const rowsText = [];
+    let minReturn = Infinity;
+    let maxReturn = -Infinity;
+
     for (const c of combos) {
       const ret = c.amount * c.odds;
-      const profit = ret - stake;
+      const profit = ret - actualStake;
+      minReturn = Math.min(minReturn, ret);
+      maxReturn = Math.max(maxReturn, ret);
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>第 ${c.idx} 注</td>
         <td>${c.matchNames}</td>
         <td>${c.name}</td>
         <td>${fmtOdds(c.odds)}</td>
+        <td>${c.units} 注</td>
         <td>￥${fmtMoney(c.amount)}</td>
         <td>￥${fmtMoney(ret)}</td>
         <td class="${profit >= 0 ? "positive" : "negative"}">￥${fmtMoney(profit)}</td>
       `;
       tbody.appendChild(tr);
-      rowsText.push(`第${c.idx}注｜${c.fullName}｜赔率 ${fmtOdds(c.odds)}｜买 ￥${fmtMoney(c.amount)}｜命中返还 ￥${fmtMoney(ret)}`);
+      rowsText.push(`第${c.idx}注｜${c.fullName}｜赔率 ${fmtOdds(c.odds)}｜买 ${c.units} 注｜￥${fmtMoney(c.amount)}｜命中返还 ￥${fmtMoney(ret)}`);
     }
 
-    const profit = fixedReturn - stake;
-    const rate = fixedReturn / stake - 1;
+    const minProfit = minReturn - actualStake;
+    const minRate = minProfit / actualStake;
 
-    document.getElementById("sStake").textContent = `￥${fmtMoney(stake)}`;
-    document.getElementById("sReturn").textContent = `￥${fmtMoney(fixedReturn)}`;
-    document.getElementById("sProfit").textContent = `￥${fmtMoney(profit)}`;
-    document.getElementById("sProfit").className = `value ${profit >= 0 ? "positive" : "negative"}`;
-    document.getElementById("sRate").textContent = fmtRate(rate);
-    document.getElementById("sRate").className = `value ${rate >= 0 ? "positive" : "negative"}`;
+    document.getElementById("sStake").textContent = `￥${fmtMoney(actualStake)}`;
+    document.getElementById("sUnits").textContent = `${totalUnits} 注`;
+    document.getElementById("sMinReturn").textContent = `￥${fmtMoney(minReturn)}`;
+    document.getElementById("sMinProfit").textContent = `￥${fmtMoney(minProfit)}`;
+    document.getElementById("sMinProfit").className = `value ${minProfit >= 0 ? "positive" : "negative"}`;
+    document.getElementById("sMinRate").textContent = fmtRate(minRate);
+    document.getElementById("sMinRate").className = `value ${minRate >= 0 ? "positive" : "negative"}`;
 
     const selectedText = selectedByMatch.map((s, i) =>
       `第${i + 1}场 ${matchLabels[i]}：选 ${s.map(x => `${outcomeText(x)} ${x.odds}`).join(" / ")}`
@@ -452,11 +531,16 @@ function calculate() {
 
     latestText =
 `三场两结果 8注3串1计算结果
-总投入：￥${fmtMoney(stake)}
+预算：￥${fmtMoney(budget)}
+实际投入：￥${fmtMoney(actualStake)}
+总注数：${totalUnits} 注
 ${selectedText}
-理论固定返还：￥${fmtMoney(fixedReturn)}
-理论净收益：￥${fmtMoney(profit)}
-理论收益率：${fmtRate(rate)}
+
+理论等额返还（未按2元取整）：￥${fmtMoney(idealFixedReturn)}
+取整后最低返还：￥${fmtMoney(minReturn)}
+取整后最高返还：￥${fmtMoney(maxReturn)}
+最低净收益：￥${fmtMoney(minProfit)}
+最低收益率：${fmtRate(minRate)}
 
 购买清单：
 ${rowsText.join("\n")}`;
