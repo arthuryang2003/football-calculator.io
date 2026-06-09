@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>三场两结果 8注三串一计算器</title>
+  <title>三场两结果 8注3串1计算器</title>
   <style>
     :root {
       --bg: #f6f7fb;
@@ -31,9 +31,7 @@
       margin: 0 auto;
       padding: 18px 14px 40px;
     }
-    header {
-      margin: 8px 0 18px;
-    }
+    header { margin: 8px 0 18px; }
     h1 {
       font-size: 24px;
       margin: 0 0 8px;
@@ -52,13 +50,8 @@
       padding: 16px;
       margin-bottom: 14px;
     }
-    .grid {
-      display: grid;
-      gap: 12px;
-    }
-    .matches {
-      grid-template-columns: repeat(3, 1fr);
-    }
+    .grid { display: grid; gap: 12px; }
+    .matches { grid-template-columns: repeat(3, 1fr); }
     .match {
       border: 1px solid var(--border);
       border-radius: 14px;
@@ -89,7 +82,13 @@
       border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(37,99,235,.12);
     }
-    .row {
+    .team-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .odds-row {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
       gap: 8px;
@@ -146,7 +145,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 760px;
+      min-width: 860px;
       background: #fff;
     }
     th, td {
@@ -154,9 +153,11 @@
       border-bottom: 1px solid var(--border);
       text-align: right;
       font-size: 14px;
+      vertical-align: top;
     }
     th:first-child, td:first-child,
-    th:nth-child(2), td:nth-child(2) {
+    th:nth-child(2), td:nth-child(2),
+    th:nth-child(3), td:nth-child(3) {
       text-align: left;
     }
     th {
@@ -170,6 +171,12 @@
       color: var(--muted);
       font-size: 13px;
     }
+    .match-name {
+      margin-top: 6px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+    }
     .tips {
       color: var(--muted);
       font-size: 13px;
@@ -180,20 +187,31 @@
       margin-top: 10px;
       display: none;
     }
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 12px;
+      margin-left: 4px;
+      white-space: nowrap;
+    }
     @media (max-width: 760px) {
       h1 { font-size: 21px; }
       .matches { grid-template-columns: 1fr; }
       .stake-row { grid-template-columns: 1fr; }
       .summary { grid-template-columns: 1fr 1fr; }
       .card { padding: 14px; }
+      .team-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <h1>三场两结果 8注三串一计算器</h1>
-      <p class="sub">输入三场胜/平/负赔率，自动选择每场赔率最低的两个结果，并按“反赔率配比”计算 8 注三串一下注金额。</p>
+      <h1>三场两结果 8注3串1计算器</h1>
+      <p class="sub">输入三场比赛的主队、客队和胜/平/负赔率，自动选择每场赔率最低的两个结果，并按“反赔率配比”计算 8 注 3 串 1 的购买金额。</p>
     </header>
 
     <section class="card">
@@ -231,7 +249,7 @@
           <div class="value" id="sRate">-</div>
         </div>
       </div>
-      <p class="tips">提示：这里的“固定返还”只在三场实际结果都落在各自选中的两个结果中时成立。任意一场打出第三个结果，8 注三串一都会失效。</p>
+      <p class="tips">提示：“胜”表示主队胜，“负”表示客队胜。这里的固定返还只在三场实际结果都落在各自选中的两个结果中时成立；任意一场打出第三个结果，8 注都会失效。</p>
     </section>
 
     <section class="card">
@@ -241,6 +259,7 @@
           <thead>
             <tr>
               <th>注单</th>
+              <th>比赛</th>
               <th>组合</th>
               <th>串关赔率</th>
               <th>购买金额</th>
@@ -261,12 +280,6 @@ const outcomeNames = [
   { key: "lose", label: "负" },
 ];
 
-const matchDefaults = [
-  { win: "", draw: "", lose: "" },
-  { win: "", draw: "", lose: "" },
-  { win: "", draw: "", lose: "" },
-];
-
 const matchesEl = document.getElementById("matches");
 const tbody = document.getElementById("tbody");
 const errorBox = document.getElementById("errorBox");
@@ -281,6 +294,20 @@ function fmtOdds(x) {
 function fmtRate(x) {
   return (x * 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
 }
+function safeTeamName(value, fallback) {
+  const v = String(value || "").trim();
+  return v || fallback;
+}
+function outcomeText(item) {
+  if (item.key === "win") return `${item.home}胜`;
+  if (item.key === "draw") return `${item.home}平${item.away}`;
+  return `${item.away}胜`;
+}
+function shortOutcomeText(item) {
+  if (item.key === "win") return `${item.home}胜`;
+  if (item.key === "draw") return `平`;
+  return `${item.away}胜`;
+}
 
 function renderInputs() {
   matchesEl.innerHTML = "";
@@ -289,7 +316,17 @@ function renderInputs() {
     div.className = "match";
     div.innerHTML = `
       <h2>第 ${i + 1} 场</h2>
-      <div class="row">
+      <div class="team-row">
+        <div>
+          <label>主队</label>
+          <input id="m${i}_home" type="text" placeholder="例如：阿森纳">
+        </div>
+        <div>
+          <label>客队</label>
+          <input id="m${i}_away" type="text" placeholder="例如：切尔西">
+        </div>
+      </div>
+      <div class="odds-row">
         ${outcomeNames.map(o => `
           <div>
             <label>${o.label}赔率</label>
@@ -297,6 +334,7 @@ function renderInputs() {
           </div>
         `).join("")}
       </div>
+      <div class="match-name" id="matchname_${i}">第 ${i + 1} 场：主队 vs 客队</div>
       <div class="selected" id="selected_${i}">将自动选择最低的两个赔率</div>
     `;
     matchesEl.appendChild(div);
@@ -306,23 +344,35 @@ renderInputs();
 
 function readOdds() {
   const result = [];
+  const matchLabels = [];
+
   for (let i = 0; i < 3; i++) {
+    const home = safeTeamName(document.getElementById(`m${i}_home`).value, `第${i + 1}场主队`);
+    const away = safeTeamName(document.getElementById(`m${i}_away`).value, `第${i + 1}场客队`);
+    const matchLabel = `${home} vs ${away}`;
+    matchLabels.push(matchLabel);
+    document.getElementById(`matchname_${i}`).textContent = `第 ${i + 1} 场：${matchLabel}`;
+
     const arr = outcomeNames.map(o => {
       const value = parseFloat(document.getElementById(`m${i}_${o.key}`).value);
-      return { match: i + 1, key: o.key, label: o.label, odds: value };
+      return { match: i + 1, key: o.key, label: o.label, odds: value, home, away, matchLabel };
     });
+
     for (const item of arr) {
       if (!Number.isFinite(item.odds) || item.odds <= 1) {
-        throw new Error(`请填写第 ${i + 1} 场的胜/平/负赔率，且赔率必须大于 1。`);
+        throw new Error(`请填写第 ${i + 1} 场「${matchLabel}」的胜/平/负赔率，且赔率必须大于 1。`);
       }
     }
+
     arr.sort((a, b) => a.odds - b.odds);
     const selected = arr.slice(0, 2);
     result.push(selected);
-    document.getElementById(`selected_${i}`).textContent =
-      `已选：${selected.map(x => `${x.label} ${x.odds}`).join("，")}`;
+
+    document.getElementById(`selected_${i}`).innerHTML =
+      `已选：${selected.map(x => `${outcomeText(x)} <span class="badge">${x.odds}</span>`).join("，")}`;
   }
-  return result;
+
+  return { selectedByMatch: result, matchLabels };
 }
 
 function cartesian(arrays) {
@@ -340,13 +390,17 @@ function calculate() {
     if (!Number.isFinite(stake) || stake <= 0) {
       throw new Error("请填写大于 0 的总投入金额。");
     }
-    const selectedByMatch = readOdds();
+
+    const { selectedByMatch, matchLabels } = readOdds();
     const combos = cartesian(selectedByMatch).map((combo, idx) => {
       const odds = combo.reduce((p, x) => p * x.odds, 1);
       return {
         idx: idx + 1,
         combo,
-        name: combo.map(x => `${x.match}${x.label}`).join(" × "),
+        matchNames: combo.map(x => `第${x.match}场：${x.matchLabel}`).join("<br>"),
+        matchNamesText: combo.map(x => `第${x.match}场：${x.matchLabel}`).join("；"),
+        name: combo.map(x => shortOutcomeText(x)).join(" × "),
+        fullName: combo.map(x => `${x.matchLabel}：${outcomeText(x)}`).join("；"),
         odds,
         inv: 1 / odds,
       };
@@ -371,6 +425,7 @@ function calculate() {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>第 ${c.idx} 注</td>
+        <td>${c.matchNames}</td>
         <td>${c.name}</td>
         <td>${fmtOdds(c.odds)}</td>
         <td>￥${fmtMoney(c.amount)}</td>
@@ -378,7 +433,7 @@ function calculate() {
         <td class="${profit >= 0 ? "positive" : "negative"}">￥${fmtMoney(profit)}</td>
       `;
       tbody.appendChild(tr);
-      rowsText.push(`第${c.idx}注 ${c.name}｜赔率 ${fmtOdds(c.odds)}｜买 ￥${fmtMoney(c.amount)}｜命中返还 ￥${fmtMoney(ret)}`);
+      rowsText.push(`第${c.idx}注｜${c.fullName}｜赔率 ${fmtOdds(c.odds)}｜买 ￥${fmtMoney(c.amount)}｜命中返还 ￥${fmtMoney(ret)}`);
     }
 
     const profit = fixedReturn - stake;
@@ -392,10 +447,11 @@ function calculate() {
     document.getElementById("sRate").className = `value ${rate >= 0 ? "positive" : "negative"}`;
 
     const selectedText = selectedByMatch.map((s, i) =>
-      `第${i + 1}场选 ${s.map(x => `${x.label}${x.odds}`).join(" / ")}`
+      `第${i + 1}场 ${matchLabels[i]}：选 ${s.map(x => `${outcomeText(x)} ${x.odds}`).join(" / ")}`
     ).join("\n");
+
     latestText =
-`三场两结果 8注三串一计算结果
+`三场两结果 8注3串1计算结果
 总投入：￥${fmtMoney(stake)}
 ${selectedText}
 理论固定返还：￥${fmtMoney(fixedReturn)}
@@ -412,6 +468,7 @@ ${rowsText.join("\n")}`;
 }
 
 document.getElementById("calcBtn").addEventListener("click", calculate);
+
 document.getElementById("copyBtn").addEventListener("click", async () => {
   if (!latestText) calculate();
   try {
@@ -424,10 +481,19 @@ document.getElementById("copyBtn").addEventListener("click", async () => {
 
 document.addEventListener("input", (e) => {
   if (e.target.tagName === "INPUT") {
-    // 用户输入时不自动频繁弹错；只有所有字段有效时自动刷新
     try {
-      const allInputs = [...document.querySelectorAll("input")];
-      if (allInputs.every(x => x.value !== "")) calculate();
+      const oddsInputs = [];
+      for (let i = 0; i < 3; i++) {
+        for (const o of outcomeNames) oddsInputs.push(document.getElementById(`m${i}_${o.key}`));
+      }
+      if (oddsInputs.every(x => x.value !== "")) calculate();
+      else {
+        for (let i = 0; i < 3; i++) {
+          const home = safeTeamName(document.getElementById(`m${i}_home`).value, "主队");
+          const away = safeTeamName(document.getElementById(`m${i}_away`).value, "客队");
+          document.getElementById(`matchname_${i}`).textContent = `第 ${i + 1} 场：${home} vs ${away}`;
+        }
+      }
     } catch (_) {}
   }
 });
