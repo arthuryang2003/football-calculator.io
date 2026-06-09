@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>三场两结果 8注三串一计算器</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --accent: #2563eb;
+      --danger: #b91c1c;
+      --ok: #047857;
+      --shadow: 0 10px 30px rgba(0,0,0,.08);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+        Arial, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 18px 14px 40px;
+    }
+    header {
+      margin: 8px 0 18px;
+    }
+    h1 {
+      font-size: 24px;
+      margin: 0 0 8px;
+      letter-spacing: -0.02em;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 0;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .grid {
+      display: grid;
+      gap: 12px;
+    }
+    .matches {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .match {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      background: #fbfdff;
+    }
+    .match h2 {
+      font-size: 16px;
+      margin: 0 0 10px;
+    }
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+    input {
+      width: 100%;
+      padding: 11px 10px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 16px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+    }
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .stake-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-size: 15px;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button.secondary {
+      color: var(--text);
+      background: #eef2ff;
+    }
+    button:active { transform: translateY(1px); }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .stat {
+      background: #f9fafb;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .stat .name {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .stat .value {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .positive { color: var(--ok); }
+    .negative { color: var(--danger); }
+    .table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      background: #fff;
+    }
+    th, td {
+      padding: 11px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+      font-size: 14px;
+    }
+    th:first-child, td:first-child,
+    th:nth-child(2), td:nth-child(2) {
+      text-align: left;
+    }
+    th {
+      color: var(--muted);
+      background: #f9fafb;
+      font-weight: 600;
+    }
+    tr:last-child td { border-bottom: 0; }
+    .selected {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .tips {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .error {
+      color: var(--danger);
+      font-size: 14px;
+      margin-top: 10px;
+      display: none;
+    }
+    @media (max-width: 760px) {
+      h1 { font-size: 21px; }
+      .matches { grid-template-columns: 1fr; }
+      .stake-row { grid-template-columns: 1fr; }
+      .summary { grid-template-columns: 1fr 1fr; }
+      .card { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>三场两结果 8注三串一计算器</h1>
+      <p class="sub">输入三场胜/平/负赔率，自动选择每场赔率最低的两个结果，并按“反赔率配比”计算 8 注三串一下注金额。</p>
+    </header>
+
+    <section class="card">
+      <div class="stake-row">
+        <div>
+          <label for="stake">总投入金额</label>
+          <input id="stake" type="number" inputmode="decimal" value="1000" min="0" step="0.01">
+        </div>
+        <button id="calcBtn">计算</button>
+        <button id="copyBtn" class="secondary">复制清单</button>
+      </div>
+      <div class="error" id="errorBox"></div>
+    </section>
+
+    <section class="card">
+      <div class="grid matches" id="matches"></div>
+    </section>
+
+    <section class="card">
+      <div class="summary">
+        <div class="stat">
+          <div class="name">总投入</div>
+          <div class="value" id="sStake">-</div>
+        </div>
+        <div class="stat">
+          <div class="name">理论固定返还</div>
+          <div class="value" id="sReturn">-</div>
+        </div>
+        <div class="stat">
+          <div class="name">理论净收益</div>
+          <div class="value" id="sProfit">-</div>
+        </div>
+        <div class="stat">
+          <div class="name">理论收益率</div>
+          <div class="value" id="sRate">-</div>
+        </div>
+      </div>
+      <p class="tips">提示：这里的“固定返还”只在三场实际结果都落在各自选中的两个结果中时成立。任意一场打出第三个结果，8 注三串一都会失效。</p>
+    </section>
+
+    <section class="card">
+      <h2 style="font-size:16px;margin:0 0 10px;">8 注购买清单</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>注单</th>
+              <th>组合</th>
+              <th>串关赔率</th>
+              <th>购买金额</th>
+              <th>命中返还</th>
+              <th>净收益</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+<script>
+const outcomeNames = [
+  { key: "win", label: "胜" },
+  { key: "draw", label: "平" },
+  { key: "lose", label: "负" },
+];
+
+const matchDefaults = [
+  { win: "", draw: "", lose: "" },
+  { win: "", draw: "", lose: "" },
+  { win: "", draw: "", lose: "" },
+];
+
+const matchesEl = document.getElementById("matches");
+const tbody = document.getElementById("tbody");
+const errorBox = document.getElementById("errorBox");
+let latestText = "";
+
+function fmtMoney(x) {
+  return Number(x).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtOdds(x) {
+  return Number(x).toLocaleString("zh-CN", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+}
+function fmtRate(x) {
+  return (x * 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+}
+
+function renderInputs() {
+  matchesEl.innerHTML = "";
+  for (let i = 0; i < 3; i++) {
+    const div = document.createElement("div");
+    div.className = "match";
+    div.innerHTML = `
+      <h2>第 ${i + 1} 场</h2>
+      <div class="row">
+        ${outcomeNames.map(o => `
+          <div>
+            <label>${o.label}赔率</label>
+            <input id="m${i}_${o.key}" type="number" inputmode="decimal" min="1.01" step="0.01" placeholder="${o.label}">
+          </div>
+        `).join("")}
+      </div>
+      <div class="selected" id="selected_${i}">将自动选择最低的两个赔率</div>
+    `;
+    matchesEl.appendChild(div);
+  }
+}
+renderInputs();
+
+function readOdds() {
+  const result = [];
+  for (let i = 0; i < 3; i++) {
+    const arr = outcomeNames.map(o => {
+      const value = parseFloat(document.getElementById(`m${i}_${o.key}`).value);
+      return { match: i + 1, key: o.key, label: o.label, odds: value };
+    });
+    for (const item of arr) {
+      if (!Number.isFinite(item.odds) || item.odds <= 1) {
+        throw new Error(`请填写第 ${i + 1} 场的胜/平/负赔率，且赔率必须大于 1。`);
+      }
+    }
+    arr.sort((a, b) => a.odds - b.odds);
+    const selected = arr.slice(0, 2);
+    result.push(selected);
+    document.getElementById(`selected_${i}`).textContent =
+      `已选：${selected.map(x => `${x.label} ${x.odds}`).join("，")}`;
+  }
+  return result;
+}
+
+function cartesian(arrays) {
+  return arrays.reduce((acc, curr) => {
+    const next = [];
+    for (const a of acc) for (const c of curr) next.push([...a, c]);
+    return next;
+  }, [[]]);
+}
+
+function calculate() {
+  try {
+    errorBox.style.display = "none";
+    const stake = parseFloat(document.getElementById("stake").value);
+    if (!Number.isFinite(stake) || stake <= 0) {
+      throw new Error("请填写大于 0 的总投入金额。");
+    }
+    const selectedByMatch = readOdds();
+    const combos = cartesian(selectedByMatch).map((combo, idx) => {
+      const odds = combo.reduce((p, x) => p * x.odds, 1);
+      return {
+        idx: idx + 1,
+        combo,
+        name: combo.map(x => `${x.match}${x.label}`).join(" × "),
+        odds,
+        inv: 1 / odds,
+      };
+    });
+
+    const invSum = combos.reduce((s, c) => s + c.inv, 0);
+    const fixedReturn = stake / invSum;
+    let roundedSum = 0;
+
+    combos.forEach((c, idx) => {
+      c.rawAmount = fixedReturn / c.odds;
+      c.amount = Math.round(c.rawAmount * 100) / 100;
+      if (idx < combos.length - 1) roundedSum += c.amount;
+    });
+    combos[combos.length - 1].amount = Math.round((stake - roundedSum) * 100) / 100;
+
+    tbody.innerHTML = "";
+    const rowsText = [];
+    for (const c of combos) {
+      const ret = c.amount * c.odds;
+      const profit = ret - stake;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>第 ${c.idx} 注</td>
+        <td>${c.name}</td>
+        <td>${fmtOdds(c.odds)}</td>
+        <td>￥${fmtMoney(c.amount)}</td>
+        <td>￥${fmtMoney(ret)}</td>
+        <td class="${profit >= 0 ? "positive" : "negative"}">￥${fmtMoney(profit)}</td>
+      `;
+      tbody.appendChild(tr);
+      rowsText.push(`第${c.idx}注 ${c.name}｜赔率 ${fmtOdds(c.odds)}｜买 ￥${fmtMoney(c.amount)}｜命中返还 ￥${fmtMoney(ret)}`);
+    }
+
+    const profit = fixedReturn - stake;
+    const rate = fixedReturn / stake - 1;
+
+    document.getElementById("sStake").textContent = `￥${fmtMoney(stake)}`;
+    document.getElementById("sReturn").textContent = `￥${fmtMoney(fixedReturn)}`;
+    document.getElementById("sProfit").textContent = `￥${fmtMoney(profit)}`;
+    document.getElementById("sProfit").className = `value ${profit >= 0 ? "positive" : "negative"}`;
+    document.getElementById("sRate").textContent = fmtRate(rate);
+    document.getElementById("sRate").className = `value ${rate >= 0 ? "positive" : "negative"}`;
+
+    const selectedText = selectedByMatch.map((s, i) =>
+      `第${i + 1}场选 ${s.map(x => `${x.label}${x.odds}`).join(" / ")}`
+    ).join("\n");
+    latestText =
+`三场两结果 8注三串一计算结果
+总投入：￥${fmtMoney(stake)}
+${selectedText}
+理论固定返还：￥${fmtMoney(fixedReturn)}
+理论净收益：￥${fmtMoney(profit)}
+理论收益率：${fmtRate(rate)}
+
+购买清单：
+${rowsText.join("\n")}`;
+
+  } catch (err) {
+    errorBox.textContent = err.message || String(err);
+    errorBox.style.display = "block";
+  }
+}
+
+document.getElementById("calcBtn").addEventListener("click", calculate);
+document.getElementById("copyBtn").addEventListener("click", async () => {
+  if (!latestText) calculate();
+  try {
+    await navigator.clipboard.writeText(latestText);
+    alert("已复制购买清单");
+  } catch (e) {
+    alert("复制失败，可手动长按表格内容复制。");
+  }
+});
+
+document.addEventListener("input", (e) => {
+  if (e.target.tagName === "INPUT") {
+    // 用户输入时不自动频繁弹错；只有所有字段有效时自动刷新
+    try {
+      const allInputs = [...document.querySelectorAll("input")];
+      if (allInputs.every(x => x.value !== "")) calculate();
+    } catch (_) {}
+  }
+});
+</script>
+</body>
+</html>
