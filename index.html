@@ -1,652 +1,147 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>预算内8注3串1计算器</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>足球串关计算器 - 版本入口</title>
   <style>
     :root {
-      --bg: #f6f7fb;
+      --bg: #f5f7fb;
       --card: #ffffff;
-      --text: #1f2937;
-      --muted: #6b7280;
-      --border: #e5e7eb;
-      --accent: #2563eb;
-      --danger: #b91c1c;
-      --ok: #047857;
-      --warn: #b45309;
-      --shadow: 0 10px 30px rgba(0,0,0,.08);
-      --radius: 18px;
+      --text: #172033;
+      --muted: #64748b;
+      --border: #dfe5ef;
+      --accent: #176b5b;
+      --accent-2: #234b8f;
+      --shadow: 0 14px 34px rgba(18, 32, 55, .08);
+      --radius: 16px;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
+      min-height: 100vh;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
         Arial, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-      background: var(--bg);
+      background: linear-gradient(180deg, #eef4f1 0%, var(--bg) 48%, #f8fafc 100%);
       color: var(--text);
-      line-height: 1.45;
+      line-height: 1.5;
     }
     .wrap {
-      max-width: 1120px;
+      width: min(980px, 100%);
       margin: 0 auto;
-      padding: 18px 14px 40px;
+      padding: 28px 16px 44px;
     }
-    header { margin: 8px 0 18px; }
+    header {
+      padding: 12px 2px 22px;
+    }
     h1 {
-      font-size: 24px;
       margin: 0 0 8px;
-      letter-spacing: -0.02em;
+      font-size: clamp(26px, 7vw, 40px);
+      letter-spacing: 0;
     }
     .sub {
-      color: var(--muted);
-      font-size: 14px;
       margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+    .versions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
     }
     .card {
+      display: flex;
+      min-height: 280px;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 22px;
+      padding: 20px;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      padding: 16px;
-      margin-bottom: 14px;
     }
-    .grid { display: grid; gap: 12px; }
-    .matches { grid-template-columns: repeat(3, 1fr); }
-    .match {
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px;
-      background: #fbfdff;
-    }
-    .match h2 {
-      font-size: 16px;
-      margin: 0 0 10px;
-    }
-    label {
-      display: block;
-      color: var(--muted);
-      font-size: 12px;
-      margin-bottom: 5px;
-    }
-    input {
-      width: 100%;
-      padding: 11px 10px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      font-size: 16px;
-      background: #fff;
-      color: var(--text);
-      outline: none;
-    }
-    input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
-    }
-    .team-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 10px;
-    }
-    .odds-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 8px;
-    }
-    .settings-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr auto auto;
-      gap: 10px;
-      align-items: end;
-    }
-    button {
-      border: 0;
-      border-radius: 12px;
-      padding: 11px 14px;
-      font-size: 15px;
-      color: #fff;
-      background: var(--accent);
-      cursor: pointer;
-      white-space: nowrap;
-    }
-    button.secondary {
-      color: var(--text);
-      background: #eef2ff;
-    }
-    button:active { transform: translateY(1px); }
-    .summary {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 10px;
-    }
-    .stat {
-      background: #f9fafb;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px;
-    }
-    .stat .name {
-      color: var(--muted);
-      font-size: 12px;
-      margin-bottom: 6px;
-    }
-    .stat .value {
-      font-size: 18px;
-      font-weight: 700;
-      word-break: break-all;
-    }
-    .positive { color: var(--ok); }
-    .negative { color: var(--danger); }
-    .warning { color: var(--warn); }
-    .table-wrap {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 1060px;
-      background: #fff;
-    }
-    th, td {
-      padding: 11px 10px;
-      border-bottom: 1px solid var(--border);
-      text-align: right;
-      font-size: 14px;
-      vertical-align: top;
-    }
-    th:first-child, td:first-child,
-    th:nth-child(2), td:nth-child(2),
-    th:nth-child(3), td:nth-child(3) {
-      text-align: left;
-    }
-    th {
-      color: var(--muted);
-      background: #f9fafb;
-      font-weight: 600;
-    }
-    tr:last-child td { border-bottom: 0; }
-    .selected {
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .match-name {
-      margin-top: 6px;
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 600;
-    }
-    .tips {
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .error {
-      color: var(--danger);
-      font-size: 14px;
-      margin-top: 10px;
-      display: none;
-    }
-    .notice {
-      color: var(--warn);
-      font-size: 13px;
-      margin-top: 8px;
-      display: none;
-    }
-    .badge {
-      display: inline-block;
-      padding: 2px 7px;
+    .tag {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      min-height: 30px;
+      padding: 4px 10px;
       border-radius: 999px;
-      background: #eef2ff;
-      color: #3730a3;
-      font-size: 12px;
-      margin-left: 4px;
-      white-space: nowrap;
-    }
-    .small {
-      color: var(--muted);
-      font-size: 12px;
-      margin-top: 3px;
-    }
-    .mode-note {
-      background: #fffbeb;
-      border: 1px solid #fde68a;
-      color: #92400e;
-      padding: 10px 12px;
-      border-radius: 12px;
+      background: #e8f3ef;
+      color: var(--accent);
       font-size: 13px;
-      margin-top: 10px;
+      font-weight: 700;
     }
-    @media (max-width: 960px) {
-      h1 { font-size: 21px; }
-      .matches { grid-template-columns: 1fr; }
-      .settings-row { grid-template-columns: 1fr; }
-      .summary { grid-template-columns: 1fr 1fr; }
-      .card { padding: 14px; }
-      .team-row { grid-template-columns: 1fr; }
+    .tag.v2 {
+      background: #eaf0fb;
+      color: var(--accent-2);
+    }
+    h2 {
+      margin: 14px 0 10px;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+    p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    a.button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    a.button.v2 { background: var(--accent-2); }
+    .foot {
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    @media (max-width: 720px) {
+      .wrap { padding-top: 20px; }
+      .versions { grid-template-columns: 1fr; }
+      .card { min-height: 0; }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <main class="wrap">
     <header>
-      <h1>预算内8注3串1计算器</h1>
-      <p class="sub">输入三场比赛的主队、客队和胜/平/负赔率，自动选择每场赔率最低的两个结果，并在预算内搜索整数注数方案。</p>
+      <h1>足球串关计算器</h1>
+      <p class="sub">选择要使用的版本。此入口页不包含投注计算逻辑。</p>
     </header>
 
-    <section class="card">
-      <div class="settings-row">
+    <section class="versions" aria-label="版本选择">
+      <article class="card">
         <div>
-          <label for="budgetMax">预算上限</label>
-          <input id="budgetMax" type="number" inputmode="decimal" value="1000" min="16" step="2">
-          <div class="small">默认 1000 元以内。</div>
+          <span class="tag">v1 稳定版</span>
+          <h2>固定三场计算器</h2>
+          <p>固定三场比赛，自动选择每场赔率最低的两个结果，在预算内搜索整数注数方案。</p>
         </div>
+        <a class="button" href="./v1.html">进入 v1 稳定版</a>
+      </article>
+
+      <article class="card">
         <div>
-          <label for="budgetMin">最低投入</label>
-          <input id="budgetMin" type="number" inputmode="decimal" value="16" min="16" step="2">
-          <div class="small">不想推荐太小金额，可改成 200 / 500 / 800。</div>
-        </div>
-        <div>
-          <label for="tolerance">接近最优容忍度</label>
-          <input id="tolerance" type="number" inputmode="decimal" value="0.30" min="0" step="0.05">
-          <div class="small">单位：百分点。越大越偏向少花钱。</div>
-        </div>
-        <button id="calcBtn">预算内搜索</button>
-        <button id="copyBtn" class="secondary">复制清单</button>
-      </div>
-      <div class="mode-note">推荐逻辑：先找预算范围内“最低收益率”最高的整数注数方案；再在收益率差距不超过容忍度的方案里，优先推荐金额更小的方案。</div>
-      <div class="error" id="errorBox"></div>
-      <div class="notice" id="noticeBox"></div>
+          <span class="tag v2">v2 新版迭代</span>
+          <h2>多场与信心权重</h2>
+          <p>支持多场比赛、手动选择结果、单场只买一个结果、信心权重和多种收益率优化方式。</p>
+        </div>100
+        <a class="button v2" href="./v2.html">进入 v2 新版</a>
+      </article>
     </section>
 
-    <section class="card">
-      <div class="grid matches" id="matches"></div>
-    </section>
-
-    <section class="card">
-      <div class="summary">
-        <div class="stat">
-          <div class="name">推荐投入</div>
-          <div class="value" id="sStake">-</div>
-        </div>
-        <div class="stat">
-          <div class="name">总注数</div>
-          <div class="value" id="sUnits">-</div>
-        </div>
-        <div class="stat">
-          <div class="name">最低命中返还</div>
-          <div class="value" id="sMinReturn">-</div>
-        </div>
-        <div class="stat">
-          <div class="name">最低收益率</div>
-          <div class="value" id="sRate">-</div>
-        </div>
-        <div class="stat">
-          <div class="name">预算内最优收益率</div>
-          <div class="value" id="sBestRate">-</div>
-        </div>
-        <div class="stat">
-          <div class="name">与最优差距</div>
-          <div class="value" id="sGap">-</div>
-        </div>
-      </div>
-      <p class="tips">提示：“胜”表示主队胜，“负”表示客队胜。由于必须整数注，8 种命中返还不会完全一致，所以这里重点看“最低命中返还”和“最低收益率”。</p>
-    </section>
-
-    <section class="card">
-      <h2 style="font-size:16px;margin:0 0 10px;">8 注购买清单</h2>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>注单</th>
-              <th>比赛</th>
-              <th>组合</th>
-              <th>串关赔率</th>
-              <th>买几注</th>
-              <th>购买金额</th>
-              <th>命中返还</th>
-              <th>净收益</th>
-              <th>收益率</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-    </section>
-  </div>
-
-<script>
-const outcomeNames = [
-  { key: "win", label: "胜" },
-  { key: "draw", label: "平" },
-  { key: "lose", label: "负" },
-];
-
-const matchesEl = document.getElementById("matches");
-const tbody = document.getElementById("tbody");
-const errorBox = document.getElementById("errorBox");
-const noticeBox = document.getElementById("noticeBox");
-let latestText = "";
-
-function fmtMoney(x) {
-  return "￥" + Number(x).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function fmtOdds(x) {
-  return Number(x).toLocaleString("zh-CN", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-}
-function fmtRate(x) {
-  return (x * 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
-}
-function safeTeamName(value, fallback) {
-  const v = String(value || "").trim();
-  return v || fallback;
-}
-function outcomeText(item) {
-  if (item.key === "win") return `${item.home}胜`;
-  if (item.key === "draw") return `${item.home}平${item.away}`;
-  return `${item.away}胜`;
-}
-function shortOutcomeText(item) {
-  if (item.key === "win") return `${item.home}胜`;
-  if (item.key === "draw") return `平`;
-  return `${item.away}胜`;
-}
-
-function renderInputs() {
-  matchesEl.innerHTML = "";
-  for (let i = 0; i < 3; i++) {
-    const div = document.createElement("div");
-    div.className = "match";
-    div.innerHTML = `
-      <h2>第 ${i + 1} 场</h2>
-      <div class="team-row">
-        <div>
-          <label>主队</label>
-          <input id="m${i}_home" type="text" placeholder="例如：阿森纳">
-        </div>
-        <div>
-          <label>客队</label>
-          <input id="m${i}_away" type="text" placeholder="例如：切尔西">
-        </div>
-      </div>
-      <div class="odds-row">
-        ${outcomeNames.map(o => `
-          <div>
-            <label>${o.label}赔率</label>
-            <input id="m${i}_${o.key}" type="number" inputmode="decimal" min="1.01" step="0.01" placeholder="${o.label}">
-          </div>
-        `).join("")}
-      </div>
-      <div class="match-name" id="matchname_${i}">第 ${i + 1} 场：主队 vs 客队</div>
-      <div class="selected" id="selected_${i}">将自动选择最低的两个赔率</div>
-    `;
-    matchesEl.appendChild(div);
-  }
-}
-renderInputs();
-
-function readOdds() {
-  const result = [];
-  const matchLabels = [];
-
-  for (let i = 0; i < 3; i++) {
-    const home = safeTeamName(document.getElementById(`m${i}_home`).value, `第${i + 1}场主队`);
-    const away = safeTeamName(document.getElementById(`m${i}_away`).value, `第${i + 1}场客队`);
-    const matchLabel = `${home} vs ${away}`;
-    matchLabels.push(matchLabel);
-    document.getElementById(`matchname_${i}`).textContent = `第 ${i + 1} 场：${matchLabel}`;
-
-    const arr = outcomeNames.map(o => {
-      const raw = document.getElementById(`m${i}_${o.key}`).value;
-      const value = parseFloat(raw);
-      if (!Number.isFinite(value) || value <= 1) {
-        throw new Error(`请填写第 ${i + 1} 场「${matchLabel}」的胜/平/负赔率，且赔率必须大于 1。`);
-      }
-      return {
-        match: i + 1,
-        key: o.key,
-        label: o.label,
-        odds: value,
-        home,
-        away,
-        matchLabel
-      };
-    });
-
-    arr.sort((a, b) => a.odds - b.odds);
-    const selected = arr.slice(0, 2);
-    result.push(selected);
-
-    document.getElementById(`selected_${i}`).innerHTML =
-      `已选：${selected.map(x => `${outcomeText(x)} <span class="badge">${x.odds}</span>`).join("，")}`;
-  }
-
-  return { selectedByMatch: result, matchLabels };
-}
-
-function cartesian(arrays) {
-  return arrays.reduce((acc, curr) => {
-    const next = [];
-    for (const a of acc) for (const c of curr) next.push([...a, c]);
-    return next;
-  }, [[]]);
-}
-
-function clonePlan(combos, totalUnits) {
-  const copied = combos.map(c => ({ ...c }));
-  const returns = copied.map(c => c.units * c.odds);
-  const minReturnUnit = Math.min(...returns);
-  const maxReturnUnit = Math.max(...returns);
-  const minRate = minReturnUnit / totalUnits - 1;
-  const maxRate = maxReturnUnit / totalUnits - 1;
-  return {
-    totalUnits,
-    stake: totalUnits * 2,
-    combos: copied,
-    minReturn: minReturnUnit * 2,
-    maxReturn: maxReturnUnit * 2,
-    minRate,
-    maxRate,
-  };
-}
-
-function findPlans(baseCombos, minUnits, maxUnits) {
-  const combos = baseCombos.map(c => ({ ...c, units: 1 }));
-  const plans = [];
-
-  for (let totalUnits = baseCombos.length; totalUnits <= maxUnits; totalUnits++) {
-    if (totalUnits >= minUnits) {
-      plans.push(clonePlan(combos, totalUnits));
-    }
-
-    if (totalUnits < maxUnits) {
-      // 离散“补水”：下一注加给当前命中返还最低的组合，尽量抬高最差情况。
-      let targetIdx = 0;
-      let minCurrent = Infinity;
-      for (let i = 0; i < combos.length; i++) {
-        const currentReturn = combos[i].units * combos[i].odds;
-        if (currentReturn < minCurrent) {
-          minCurrent = currentReturn;
-          targetIdx = i;
-        }
-      }
-      combos[targetIdx].units += 1;
-    }
-  }
-
-  return plans;
-}
-
-function calculate() {
-  try {
-    errorBox.style.display = "none";
-    noticeBox.style.display = "none";
-
-    const budgetMax = parseFloat(document.getElementById("budgetMax").value);
-    const budgetMin = parseFloat(document.getElementById("budgetMin").value);
-    const tolerancePP = parseFloat(document.getElementById("tolerance").value);
-
-    if (!Number.isFinite(budgetMax) || budgetMax < 16) {
-      throw new Error("预算上限至少需要 16 元，因为 8 个组合每个至少 1 注。");
-    }
-    if (!Number.isFinite(budgetMin) || budgetMin < 16) {
-      throw new Error("最低投入至少需要 16 元。");
-    }
-    if (budgetMin > budgetMax) {
-      throw new Error("最低投入不能大于预算上限。");
-    }
-    if (!Number.isFinite(tolerancePP) || tolerancePP < 0) {
-      throw new Error("接近最优容忍度必须大于等于 0。");
-    }
-
-    const maxUnits = Math.floor(budgetMax / 2);
-    const minUnits = Math.max(8, Math.ceil(budgetMin / 2));
-
-    const { selectedByMatch, matchLabels } = readOdds();
-    const baseCombos = cartesian(selectedByMatch).map((combo, idx) => {
-      const odds = combo.reduce((p, x) => p * x.odds, 1);
-      return {
-        idx: idx + 1,
-        combo,
-        matchNames: combo.map(x => `第${x.match}场：${x.matchLabel}`).join("<br>"),
-        name: combo.map(x => shortOutcomeText(x)).join(" × "),
-        fullName: combo.map(x => `${x.matchLabel}：${outcomeText(x)}`).join("；"),
-        odds,
-      };
-    });
-
-    const invSum = baseCombos.reduce((s, c) => s + 1 / c.odds, 0);
-    const theoreticalRate = 1 / invSum - 1;
-
-    const plans = findPlans(baseCombos, minUnits, maxUnits);
-    if (plans.length === 0) {
-      throw new Error("当前预算范围内没有可行方案。");
-    }
-
-    let bestPlan = plans[0];
-    for (const p of plans) {
-      if (p.minRate > bestPlan.minRate + 1e-12 ||
-          (Math.abs(p.minRate - bestPlan.minRate) < 1e-12 && p.stake < bestPlan.stake)) {
-        bestPlan = p;
-      }
-    }
-
-    const toleranceRate = tolerancePP / 100;
-    const threshold = bestPlan.minRate - toleranceRate;
-
-    let recommended = null;
-    for (const p of plans) {
-      if (p.minRate >= threshold) {
-        if (!recommended || p.stake < recommended.stake ||
-            (p.stake === recommended.stake && p.minRate > recommended.minRate)) {
-          recommended = p;
-        }
-      }
-    }
-    if (!recommended) recommended = bestPlan;
-
-    tbody.innerHTML = "";
-    const rowsText = [];
-
-    for (const c of recommended.combos) {
-      const amount = c.units * 2;
-      const ret = amount * c.odds;
-      const profit = ret - recommended.stake;
-      const rate = profit / recommended.stake;
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>第 ${c.idx} 注</td>
-        <td>${c.matchNames}</td>
-        <td>${c.name}</td>
-        <td>${fmtOdds(c.odds)}</td>
-        <td>${c.units} 注</td>
-        <td>${fmtMoney(amount)}</td>
-        <td>${fmtMoney(ret)}</td>
-        <td class="${profit >= 0 ? "positive" : "negative"}">${fmtMoney(profit)}</td>
-        <td class="${rate >= 0 ? "positive" : "negative"}">${fmtRate(rate)}</td>
-      `;
-      tbody.appendChild(tr);
-      rowsText.push(`第${c.idx}注｜${c.fullName}｜赔率 ${fmtOdds(c.odds)}｜买 ${c.units} 注｜金额 ${fmtMoney(amount)}｜命中返还 ${fmtMoney(ret)}｜收益率 ${fmtRate(rate)}`);
-    }
-
-    const gap = bestPlan.minRate - recommended.minRate;
-
-    document.getElementById("sStake").textContent = fmtMoney(recommended.stake);
-    document.getElementById("sUnits").textContent = `${recommended.totalUnits} 注`;
-    document.getElementById("sMinReturn").textContent = fmtMoney(recommended.minReturn);
-    document.getElementById("sRate").textContent = fmtRate(recommended.minRate);
-    document.getElementById("sRate").className = `value ${recommended.minRate >= 0 ? "positive" : "negative"}`;
-    document.getElementById("sBestRate").textContent = fmtRate(bestPlan.minRate);
-    document.getElementById("sBestRate").className = `value ${bestPlan.minRate >= 0 ? "positive" : "negative"}`;
-    document.getElementById("sGap").textContent = `${(gap * 100).toFixed(3)} 个百分点`;
-
-    if (recommended.stake !== bestPlan.stake) {
-      noticeBox.textContent =
-        `已推荐更省钱的近似方案：推荐投入 ${fmtMoney(recommended.stake)}，预算内收益率最优方案需投入 ${fmtMoney(bestPlan.stake)}，二者最低收益率差距约 ${(gap * 100).toFixed(3)} 个百分点。`;
-      noticeBox.style.display = "block";
-    }
-
-    const selectedText = selectedByMatch.map((s, i) =>
-      `第${i + 1}场 ${matchLabels[i]}：选 ${s.map(x => `${outcomeText(x)} ${x.odds}`).join(" / ")}`
-    ).join("\n");
-
-    latestText =
-`预算内8注3串1计算结果
-预算范围：${fmtMoney(minUnits * 2)} 至 ${fmtMoney(maxUnits * 2)}
-推荐投入：${fmtMoney(recommended.stake)}
-总注数：${recommended.totalUnits} 注
-${selectedText}
-
-理论收益率参考：${fmtRate(theoreticalRate)}
-预算内最优最低收益率：${fmtRate(bestPlan.minRate)}
-推荐方案最低收益率：${fmtRate(recommended.minRate)}
-与最优差距：${(gap * 100).toFixed(3)} 个百分点
-最低命中返还：${fmtMoney(recommended.minReturn)}
-最高命中返还：${fmtMoney(recommended.maxReturn)}
-
-购买清单：
-${rowsText.join("\n")}`;
-
-  } catch (err) {
-    errorBox.textContent = err.message || String(err);
-    errorBox.style.display = "block";
-  }
-}
-
-document.getElementById("calcBtn").addEventListener("click", calculate);
-
-document.getElementById("copyBtn").addEventListener("click", async () => {
-  if (!latestText) calculate();
-  try {
-    await navigator.clipboard.writeText(latestText);
-    alert("已复制购买清单");
-  } catch (e) {
-    alert("复制失败，可手动长按表格内容复制。");
-  }
-});
-
-document.addEventListener("input", (e) => {
-  if (e.target.tagName === "INPUT") {
-    try {
-      const oddsInputs = [];
-      for (let i = 0; i < 3; i++) {
-        for (const o of outcomeNames) oddsInputs.push(document.getElementById(`m${i}_${o.key}`));
-      }
-      if (oddsInputs.every(x => x.value !== "")) calculate();
-      else {
-        for (let i = 0; i < 3; i++) {
-          const home = safeTeamName(document.getElementById(`m${i}_home`).value, "主队");
-          const away = safeTeamName(document.getElementById(`m${i}_away`).value, "客队");
-          document.getElementById(`matchname_${i}`).textContent = `第 ${i + 1} 场：${home} vs ${away}`;
-        }
-      }
-    } catch (_) {}
-  }
-});
-</script>
+    <p class="foot">小赌怡情，大赌伤身。</p>
+  </main>
 </body>
-</html>
+</html>0

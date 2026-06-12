@@ -1,0 +1,1312 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>足球串关计算器 v2</title>
+  <style>
+    :root{--bg:#f6f8fb;--panel:#fff;--soft:#f1f5f9;--text:#172033;--muted:#667085;--border:#dce3ec;--accent:#176b5b;--accent2:#234b8f;--danger:#b42318;--ok:#087443;--warn:#a15c07;--shadow:0 12px 30px rgba(17,24,39,.07)}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.45}
+    .wrap{max-width:1180px;margin:0 auto;padding:16px 14px 44px}
+    header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:6px 0 14px}
+    h1{margin:0 0 6px;font-size:25px;letter-spacing:0}h2{margin:0 0 12px;font-size:17px}h3{margin:0;font-size:16px}
+    .sub,.small,.hint{color:var(--muted);font-size:13px}
+    .home-link{flex:0 0 auto;color:var(--accent2);font-size:14px;text-decoration:none;padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:#fff}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:15px;margin-bottom:14px}
+    .settings{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;align-items:start}
+    label{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+    input,select,textarea{width:100%;min-height:44px;border:1px solid var(--border);border-radius:10px;padding:10px;background:#fff;color:var(--text);font-size:16px;outline:none}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(23,107,91,.13)}
+    input[type=range]{padding:0;border:0;background:transparent;box-shadow:none}
+    button{min-height:44px;border:0;border-radius:10px;padding:10px 13px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer}
+    button.secondary{background:#eaf0fb;color:var(--accent2)}button.danger{background:#fee4e2;color:var(--danger)}button:disabled{opacity:.45}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+    .match-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+    .matches{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .match{border:1px solid var(--border);border-radius:12px;background:#fbfcfe;padding:12px}
+    .team-row,.odds-row{display:grid;gap:8px;margin-bottom:10px}.team-row{grid-template-columns:1fr 1fr}.odds-row{grid-template-columns:repeat(3,1fr)}
+    .checks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+    .check{display:flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);font-size:15px;user-select:none}
+    .check input{width:18px;min-height:18px;height:18px;accent-color:var(--accent)}
+    .confidence{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;border:1px solid #cfe2dc;border-radius:12px;background:#f2faf7}
+    .confidence-control{display:grid;grid-template-columns:minmax(0,1fr)82px;gap:8px;align-items:center}.confidence-number{text-align:center}
+    .summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .stat{min-height:82px;padding:11px;border:1px solid var(--border);border-radius:12px;background:var(--soft)}
+    .stat .name{color:var(--muted);font-size:12px;margin-bottom:6px}.stat .value{font-size:17px;font-weight:800;word-break:break-word}
+    .positive{color:var(--ok)}.negative{color:var(--danger)}.warning{color:var(--warn)}
+    .error,.notice{display:none;margin-top:10px;padding:10px 12px;border-radius:10px;font-size:14px}
+    .error{color:var(--danger);background:#fff1f0;border:1px solid #ffccc7}.notice{color:var(--warn);background:#fffaeb;border:1px solid #fedf89}
+    .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:12px}
+    table{width:100%;min-width:1280px;border-collapse:collapse;background:#fff}
+    th,td{padding:10px;border-bottom:1px solid var(--border);text-align:right;font-size:14px;vertical-align:top}
+    th:first-child,td:first-child,th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:left}
+    th{background:#f8fafc;color:var(--muted);font-weight:700}tr:last-child td{border-bottom:0}
+    textarea{display:none;min-height:170px;margin-top:10px;font-size:14px}
+    @media (max-width:980px){header{display:block}.home-link{display:inline-flex;margin-top:10px}.settings,.matches,.summary{grid-template-columns:1fr}.team-row{grid-template-columns:1fr}.card{padding:13px}}
+    @media (max-width:420px){.odds-row,.checks,.confidence{grid-template-columns:1fr}.actions button{width:100%}h1{font-size:22px}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div>
+      <h1>足球串关计算器 v2</h1>
+      <p class="sub">先满足可接受最低收益率，再按信心层级平滑倾斜收益。</p>
+    </div>
+    <a class="home-link" href="./index.html">返回版本入口</a>
+  </header>
+
+  <section class="card">
+    <div class="match-head">
+      <h2>比赛列表</h2>
+      <button id="addMatchBtn" class="secondary" type="button">添加比赛</button>
+    </div>
+    <div class="matches" id="matches"></div>
+  </section>
+
+  <section class="card">
+    <h2>全局设置与计算</h2>
+    <div class="settings">
+      <div>
+        <label for="budgetMax">预算上限</label>
+        <input id="budgetMax" type="number" inputmode="decimal" min="2" step="2" value="1000">
+        <div class="small">总投入不能超过预算上限。</div>
+      </div>
+      <div>
+        <label for="floorRate">可接受最低收益率</label>
+        <input id="floorRate" type="number" inputmode="decimal" step="0.5" value="0">
+        <div class="small">单位：%。10 表示至少盈利 10%，-5 表示允许最差亏 5%。</div>
+      </div>
+      <div>
+        <label for="tiltRatio">收益倾斜比例</label>
+        <input id="tiltRatio" type="number" inputmode="decimal" min="0" max="100" step="5" value="50">
+        <div class="small">0% 尽量均衡；50% 适度倾斜；100% 尽量使用可倾斜空间。</div>
+      </div>
+      <div>
+        <label for="marketWeight">赔率参考比例</label>
+        <input id="marketWeight" type="number" inputmode="decimal" min="10" max="100" step="5" value="100">
+        <div class="small">单位：%。最低 10%，确保赔率倒数始终参与最终期望。</div>
+      </div>
+      <div>
+        <label for="sortMode">筛选方式</label>
+        <select id="sortMode">
+          <option value="minRate">最低收益率最高</option>
+          <option value="avgRate">平均收益率最高</option>
+          <option value="maxRate">最高收益率最高</option>
+        </select>
+      </div>
+      <div>
+        <label for="tolerance">接近最优容忍度</label>
+        <input id="tolerance" type="number" inputmode="decimal" min="0" step="0.05" value="0">
+        <div class="small">单位：百分点。得分接近时优先推荐投入更小的方案。</div>
+      </div>
+    </div>
+    <p class="hint">程序先筛选出所有命中结果收益率都不低于可接受最低收益率的整数方案，再按目标收益率分层逼近，让高信心组合收益更高但不无限放大。最终期望值由用户信心和赔率倒数隐含概率融合得到。赔率参考比例越高，排序越接近市场赔率；赔率参考比例越低，排序越接近你的主观信心。</p>
+    <p class="hint">可倾斜空间 = 预算内整数可实现均衡收益率 - 可接受最低收益率。空间不足时会自然退化为接近底线约束的方案。</p>
+    <div class="actions">
+      <button id="calcBtn">计算推荐方案</button>
+      <button id="copyBtn" class="secondary">复制清单</button>
+    </div>
+    <div class="error" id="errorBox"></div>
+    <div class="notice" id="noticeBox"></div>
+    <textarea id="copyFallback" readonly aria-label="手动复制内容"></textarea>
+  </section>
+
+  <section class="card">
+    <h2>推荐摘要</h2>
+    <div class="summary" id="summary"></div>
+  </section>
+
+  <section class="card">
+    <h2>购买清单</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>期望排序</th><th>注单编号</th><th>比赛组合</th><th>结果组合</th><th>串关赔率</th>
+            <th>主观期望</th><th>市场期望</th><th>最终期望</th><th>目标收益率</th><th>买几注</th><th>购买金额</th><th>命中返还</th><th>净收益</th><th>收益率</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+const OUTCOMES = [
+  { key: "win", label: "胜" },
+  { key: "draw", label: "平" },
+  { key: "lose", label: "负" }
+];
+
+let matches = [];
+let latestCopyText = "";
+
+const el = {
+  matches: document.getElementById("matches"),
+  tbody: document.getElementById("tbody"),
+  summary: document.getElementById("summary"),
+  error: document.getElementById("errorBox"),
+  notice: document.getElementById("noticeBox"),
+  fallback: document.getElementById("copyFallback")
+};
+
+function createDefaultMatch(index) {
+  const samples = [
+    { home: "主队A", away: "客队A", odds: { win: 1.68, draw: 3.35, lose: 4.20 } },
+    { home: "主队B", away: "客队B", odds: { win: 2.05, draw: 3.10, lose: 3.25 } },
+    { home: "主队C", away: "客队C", odds: { win: 1.92, draw: 3.20, lose: 3.60 } }
+  ];
+  const sample = samples[index] || { home: "主队" + (index + 1), away: "客队" + (index + 1), odds: { win: 1.80, draw: 3.20, lose: 3.80 } };
+  const match = {
+    id: Date.now() + Math.random(),
+    home: sample.home,
+    away: sample.away,
+    odds: { ...sample.odds },
+    selected: [],
+    selectionTouched: false,
+    favoredOutcome: "",
+    favoredTouched: false,
+    confidence: 50
+  };
+  autoSelectLowestTwo(match);
+  updateDefaultFavoredForMatch(match, true);
+  return match;
+}
+
+function fmtMoney(value) {
+  return "￥" + Number(value).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtOdds(value) {
+  return Number(value).toLocaleString("zh-CN", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+}
+function fmtRate(value) {
+  if (!Number.isFinite(value)) return "-";
+  return (value * 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+}
+function fmtWeight(value) {
+  return (value * 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+}
+function sortModeName(mode) {
+  if (mode === "avgRate") return "平均收益率最高";
+  if (mode === "maxRate") return "最高收益率最高";
+  return "最低收益率最高";
+}
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[ch]);
+}
+function sum(arr) {
+  return arr.reduce((total, value) => total + value, 0);
+}
+function clampPercent(value, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(0, Math.min(100, number));
+}
+
+function getOddsNumber(match, key) {
+  const value = Number(match.odds[key]);
+  return Number.isFinite(value) ? value : Infinity;
+}
+function autoSelectLowestTwo(match) {
+  match.selected = OUTCOMES
+    .map(o => ({ key: o.key, odds: getOddsNumber(match, o.key) }))
+    .sort((a, b) => a.odds - b.odds)
+    .slice(0, 2)
+    .map(o => o.key);
+}
+function getSelectedOutcomes(match) {
+  return OUTCOMES.filter(o => match.selected.indexOf(o.key) !== -1);
+}
+function getLowerOddsOutcome(match, keys) {
+  return keys.slice().sort((a, b) => getOddsNumber(match, a) - getOddsNumber(match, b))[0] || "";
+}
+function updateDefaultFavoredForMatch(match, force) {
+  const selected = getSelectedOutcomes(match).map(o => o.key);
+  if (selected.length !== 2) {
+    match.favoredOutcome = "";
+    match.favoredTouched = false;
+    return;
+  }
+  if (force || !match.favoredTouched || selected.indexOf(match.favoredOutcome) === -1) {
+    match.favoredOutcome = getLowerOddsOutcome(match, selected);
+  }
+}
+function updateDefaultFavoredOutcome(matchIndex) {
+  updateDefaultFavoredForMatch(matches[matchIndex], false);
+}
+function resultText(match, key) {
+  if (key === "win") return match.home + "胜";
+  if (key === "draw") return "平";
+  return match.away + "胜";
+}
+
+function renderMatches() {
+  el.matches.innerHTML = "";
+  matches.forEach((match, index) => {
+    const selectedCount = getSelectedOutcomes(match).length;
+    const div = document.createElement("div");
+    div.className = "match";
+    div.dataset.index = index;
+    div.innerHTML = `
+      <div class="match-head">
+        <h3>第 ${index + 1} 场</h3>
+        <button class="danger js-delete" type="button" ${matches.length <= 1 ? "disabled" : ""}>删除</button>
+      </div>
+      <div class="team-row">
+        <div><label>主队</label><input class="js-home" type="text" value="${escapeHtml(match.home)}"></div>
+        <div><label>客队</label><input class="js-away" type="text" value="${escapeHtml(match.away)}"></div>
+      </div>
+      <div class="odds-row">
+        ${OUTCOMES.map(o => `
+          <div><label>${o.label}赔率</label><input class="js-odds" data-key="${o.key}" type="number" inputmode="decimal" min="1.01" step="0.01" value="${match.odds[o.key]}"></div>
+        `).join("")}
+      </div>
+      <label>胜 / 平 / 负选择</label>
+      <div class="checks">
+        ${OUTCOMES.map(o => `
+          <label class="check"><input class="js-selected" data-key="${o.key}" type="checkbox" ${match.selected.indexOf(o.key) !== -1 ? "checked" : ""}>${o.label}</label>
+        `).join("")}
+      </div>
+      ${selectedCount === 2 ? `
+        <div class="confidence">
+          <div>
+            <label>更看好结果</label>
+            <select class="js-favored">
+              ${getSelectedOutcomes(match).map(o => `<option value="${o.key}" ${match.favoredOutcome === o.key ? "selected" : ""}>${resultText(match, o.key)}</option>`).join("")}
+            </select>
+          </div>
+          <div>
+            <label class="js-confidence-label">信心程度：${match.confidence}%</label>
+            <div class="confidence-control">
+              <input class="js-confidence" type="range" min="50" max="100" step="1" value="${match.confidence}">
+              <input class="js-confidence-number confidence-number" type="number" inputmode="numeric" min="50" max="100" step="1" value="${match.confidence}" aria-label="信心程度百分比">
+            </div>
+            <div class="small">50% = 同等看好，100% = 完全看好当前更看好结果。</div>
+          </div>
+        </div>
+      ` : `<div class="small">当前选择 ${selectedCount} 个结果。只选一个结果时该结果权重为 1。</div>`}
+    `;
+    el.matches.appendChild(div);
+  });
+}
+
+function readStateFromPage() {
+  return {
+    settings: {
+      budgetMax: Number(document.getElementById("budgetMax").value),
+      floorRate: Number(document.getElementById("floorRate").value) / 100,
+      floorRateInput: Number(document.getElementById("floorRate").value),
+      tiltRatio: clampPercent(document.getElementById("tiltRatio").value, 50) / 100,
+      tiltRatioInput: clampPercent(document.getElementById("tiltRatio").value, 50),
+      marketWeight: Math.max(10, clampPercent(document.getElementById("marketWeight").value, 100)) / 100,
+      marketWeightInput: Math.max(10, clampPercent(document.getElementById("marketWeight").value, 100)),
+      tolerance: Number(document.getElementById("tolerance").value),
+      sortMode: document.getElementById("sortMode").value
+    },
+    matches: matches.map((match, index) => ({
+      ...match,
+      index,
+      home: String(match.home || "").trim() || "第" + (index + 1) + "场主队",
+      away: String(match.away || "").trim() || "第" + (index + 1) + "场客队"
+    }))
+  };
+}
+
+function validateState(state) {
+  const settings = state.settings;
+  if (!Number.isFinite(settings.budgetMax) || settings.budgetMax < 2) throw new Error("预算上限至少需要 2 元。");
+  if (!Number.isFinite(settings.floorRate)) throw new Error("可接受最低收益率必须是数字。");
+  if (!Number.isFinite(settings.tolerance) || settings.tolerance < 0) throw new Error("接近最优容忍度必须大于等于 0。");
+  state.matches.forEach((match, index) => {
+    OUTCOMES.forEach(o => {
+      const odds = Number(match.odds[o.key]);
+      if (!Number.isFinite(odds) || odds <= 1) throw new Error("请填写第 " + (index + 1) + " 场的胜/平/负赔率，且赔率必须大于 1。");
+    });
+    const selected = getSelectedOutcomes(match);
+    if (selected.length < 1) throw new Error("第 " + (index + 1) + " 场至少选择 1 个结果。");
+    if (selected.length > 2) throw new Error("第 " + (index + 1) + " 场暂不允许选择 3 个结果，请减少选择。");
+  });
+}
+
+function getSubjectiveOutcomeProb(match, key) {
+  const selected = getSelectedOutcomes(match).map(o => o.key);
+  if (selected.length === 1) return 1;
+  const confidence = clampConfidence(match.confidence) / 100;
+  return key === match.favoredOutcome ? confidence : 1 - confidence;
+}
+function getMarketOutcomeProb(match, key) {
+  const selected = getSelectedOutcomes(match).map(o => o.key);
+  if (selected.length === 1) return 1;
+  const invSum = selected.reduce((s, outcomeKey) => {
+    const odds = Number(match.odds[outcomeKey]);
+    return s + (Number.isFinite(odds) && odds > 0 ? 1 / odds : 0);
+  }, 0);
+  const odds = Number(match.odds[key]);
+  if (!Number.isFinite(odds) || odds <= 0 || invSum <= 0) return 0;
+  return (1 / odds) / invSum;
+}
+function getFinalOutcomeProb(match, key, settings) {
+  const subjectiveProb = getSubjectiveOutcomeProb(match, key);
+  const marketProb = getMarketOutcomeProb(match, key);
+  const marketWeight = settings.marketWeight;
+  const userWeight = 1 - marketWeight;
+  return userWeight * subjectiveProb + marketWeight * marketProb;
+}
+function getOutcomeWeight(match, key) {
+  return getSubjectiveOutcomeProb(match, key);
+}
+function generateCombos(inputMatches, settings) {
+  let combos = [{
+    outcomes: [],
+    odds: 1,
+    subjectiveWeight: 1,
+    marketWeightValue: 1,
+    finalWeight: 1,
+    rawWeight: 1,
+    legConfidences: [],
+    favoredHitCount: 0
+  }];
+  inputMatches.forEach((match, matchIndex) => {
+    const next = [];
+    const selectedOutcomes = getSelectedOutcomes(match);
+    selectedOutcomes.forEach(outcome => {
+      const subjectiveProb = getSubjectiveOutcomeProb(match, outcome.key);
+      const marketProb = getMarketOutcomeProb(match, outcome.key);
+      const finalProb = getFinalOutcomeProb(match, outcome.key, settings);
+      const isFavoredHit = selectedOutcomes.length === 2 && outcome.key === match.favoredOutcome;
+      combos.forEach(combo => {
+        next.push({
+          outcomes: combo.outcomes.concat([{
+            matchIndex,
+            matchLabel: match.home + " vs " + match.away,
+            key: outcome.key,
+            text: resultText(match, outcome.key),
+            odds: Number(match.odds[outcome.key]),
+            subjectiveProb,
+            marketProb,
+            finalProb
+          }]),
+          odds: combo.odds * Number(match.odds[outcome.key]),
+          subjectiveWeight: combo.subjectiveWeight * subjectiveProb,
+          marketWeightValue: combo.marketWeightValue * marketProb,
+          finalWeight: combo.finalWeight * finalProb,
+          rawWeight: combo.subjectiveWeight * subjectiveProb,
+          legConfidences: combo.legConfidences.concat([finalProb]),
+          favoredHitCount: combo.favoredHitCount + (isFavoredHit ? 1 : 0)
+        });
+      });
+    });
+    combos = next;
+  });
+  return computeComboWeights(combos);
+}
+function computeTiltNormalizedScores(combos) {
+  const scores = combos.map(c => c.tiltScore);
+  const minScore = Math.min(...scores);
+  const maxScore = Math.max(...scores);
+  return combos.map(combo => {
+    if (Math.abs(maxScore - minScore) < 1e-12) return 0.5;
+    return (combo.tiltScore - minScore) / (maxScore - minScore);
+  });
+}
+function computeComboWeights(combos) {
+  const totalFinal = combos.reduce((s, c) => s + c.finalWeight, 0) || 1;
+  const mapped = combos.map((combo, index) => ({
+    id: index + 1,
+    outcomes: combo.outcomes,
+    displayName: combo.outcomes.map(o => o.text).join(" x "),
+    matchNames: combo.outcomes.map((o, i) => "第" + (i + 1) + "场：" + o.matchLabel).join("<br>"),
+    odds: combo.odds,
+    subjectiveValue: combo.subjectiveWeight,
+    marketValue: combo.marketWeightValue,
+    expectedValue: combo.finalWeight,
+    confidenceWeight: combo.finalWeight / totalFinal,
+    tiltScore: sum(combo.legConfidences) / combo.legConfidences.length,
+    legConfidences: combo.legConfidences.slice(),
+    favoredHitCount: combo.favoredHitCount || 0,
+    targetRate: null
+  }));
+  const normalized = computeTiltNormalizedScores(mapped);
+  return mapped.map((combo, index) => ({ ...combo, tiltNormalized: normalized[index] }));
+}
+
+function computeTheoreticalMaxMinRate(combos) {
+  const invSum = combos.reduce((s, c) => s + 1 / c.odds, 0);
+  return 1 / invSum - 1;
+}
+function getEffectiveTiltRatio(settings) {
+  return settings.tiltRatio;
+}
+// 该函数仅用于最低收益率均衡模式或异常 fallback，不再用于信心加权模式的主要分配。
+function chooseExtraUnitTarget(combos, units, totalUnits) {
+  let target = 0;
+  let minRate = Infinity;
+  combos.forEach((combo, index) => {
+    const rate = (units[index] * combo.odds) / totalUnits - 1;
+    if (rate < minRate) {
+      minRate = rate;
+      target = index;
+    }
+  });
+  return target;
+}
+function isBetterConfidenceCombo(candidate, current) {
+  if (candidate.confidenceWeight > current.confidenceWeight + 1e-12) return true;
+  if (candidate.confidenceWeight < current.confidenceWeight - 1e-12) return false;
+
+  if ((candidate.favoredHitCount || 0) > (current.favoredHitCount || 0)) return true;
+  if ((candidate.favoredHitCount || 0) < (current.favoredHitCount || 0)) return false;
+
+  return candidate.odds < current.odds;
+}
+function hasExpectedOrder(combos) {
+  const values = combos.map(c => c.expectedValue);
+  return Math.max(...values) - Math.min(...values) > 1e-12;
+}
+function respectsExpectedOrder(combos, units) {
+  for (let i = 0; i < combos.length; i += 1) {
+    for (let j = 0; j < combos.length; j += 1) {
+      if (combos[i].expectedValue > combos[j].expectedValue + 1e-12) {
+        const returnI = units[i] * combos[i].odds;
+        const returnJ = units[j] * combos[j].odds;
+        if (returnI + 1e-12 < returnJ) return false;
+      }
+    }
+  }
+  return true;
+}
+function findExpectedOrderViolation(combos, units) {
+  let best = null;
+  for (let i = 0; i < combos.length; i += 1) {
+    for (let j = 0; j < combos.length; j += 1) {
+      if (combos[i].expectedValue > combos[j].expectedValue + 1e-12) {
+        const returnI = units[i] * combos[i].odds;
+        const returnJ = units[j] * combos[j].odds;
+        if (returnI + 1e-12 < returnJ) {
+          const shortage = returnJ - returnI;
+          if (!best || shortage > best.shortage) {
+            best = { highIndex: i, lowIndex: j, shortage };
+          }
+        }
+      }
+    }
+  }
+  return best;
+}
+function isSameExpectedGroup(a, b) {
+  const absDiff = Math.abs(a - b);
+  const scale = Math.max(Math.abs(a), Math.abs(b), 1e-12);
+  return absDiff <= 1e-4 || absDiff / scale <= 0.01;
+}
+function groupCombosByExpectedValue(combos) {
+  const sorted = combos.slice().sort((a, b) => {
+    if (Math.abs(b.expectedValue - a.expectedValue) > 1e-12) {
+      return b.expectedValue - a.expectedValue;
+    }
+    return a.odds - b.odds;
+  });
+  const groups = [];
+  sorted.forEach(combo => {
+    const last = groups[groups.length - 1];
+    if (!last || !isSameExpectedGroup(last.expectedValue, combo.expectedValue)) {
+      groups.push({ expectedValue: combo.expectedValue, combos: [combo], comboIds: [combo.id] });
+    } else {
+      last.combos.push(combo);
+      last.comboIds.push(combo.id);
+      last.expectedValue = last.combos.reduce((s, c) => s + c.expectedValue, 0) / last.combos.length;
+    }
+  });
+  return groups;
+}
+function buildExpectedGroups(combos, settings, metrics) {
+  const groups = groupCombosByExpectedValue(combos);
+  const values = groups.map(g => g.expectedValue);
+  const maxValue = Math.max(...values);
+  const minValue = Math.min(...values);
+  const effectiveTiltRatio = getEffectiveTiltRatio(settings);
+  return groups.map((group, index) => {
+    let normalized = 0;
+    if (Math.abs(maxValue - minValue) > 1e-12) {
+      normalized = (group.expectedValue - minValue) / (maxValue - minValue);
+    }
+    const targetRate = settings.floorRate + effectiveTiltRatio * metrics.tiltSpace * normalized;
+    return { ...group, rank: index + 1, normalizedExpectedScore: normalized, targetRate };
+  });
+}
+function unitsArrayToMap(combos, units) {
+  const map = new Map();
+  combos.forEach((combo, index) => map.set(combo.id, units[index] || 0));
+  return map;
+}
+function unitsMapToArray(combos, unitsById) {
+  return combos.map(combo => unitsById.get(combo.id) || 0);
+}
+function chooseInGroupBalanceTarget(groupCombos, unitsById) {
+  let target = groupCombos[0];
+  let minReturnFactor = Infinity;
+  groupCombos.forEach(combo => {
+    const units = unitsById.get(combo.id) || 0;
+    const returnFactor = units * combo.odds;
+    if (returnFactor < minReturnFactor - 1e-12 ||
+        (Math.abs(returnFactor - minReturnFactor) < 1e-12 && combo.odds < target.odds)) {
+      minReturnFactor = returnFactor;
+      target = combo;
+    }
+  });
+  return target.id;
+}
+function respectsGroupOrder(groups, unitsById) {
+  for (let g = 0; g < groups.length - 1; g += 1) {
+    const highGroup = groups[g];
+    const lowGroup = groups[g + 1];
+    const highMinReturn = Math.min(...highGroup.combos.map(c => (unitsById.get(c.id) || 0) * c.odds));
+    const lowMaxReturn = Math.max(...lowGroup.combos.map(c => (unitsById.get(c.id) || 0) * c.odds));
+    if (highMinReturn + 1e-12 < lowMaxReturn) return false;
+  }
+  return true;
+}
+function findGroupOrderViolation(groups, unitsById) {
+  let best = null;
+  for (let g = 0; g < groups.length - 1; g += 1) {
+    const highGroup = groups[g];
+    const lowGroup = groups[g + 1];
+    const highReturns = highGroup.combos.map(c => ({ combo: c, returnFactor: (unitsById.get(c.id) || 0) * c.odds }));
+    const lowReturns = lowGroup.combos.map(c => ({ combo: c, returnFactor: (unitsById.get(c.id) || 0) * c.odds }));
+    const highMin = highReturns.reduce((a, b) => a.returnFactor <= b.returnFactor ? a : b);
+    const lowMax = lowReturns.reduce((a, b) => a.returnFactor >= b.returnFactor ? a : b);
+    if (highMin.returnFactor + 1e-12 < lowMax.returnFactor) {
+      const shortage = lowMax.returnFactor - highMin.returnFactor;
+      if (!best || shortage > best.shortage) {
+        best = { highGroup, lowGroup, targetComboId: highMin.combo.id, shortage };
+      }
+    }
+  }
+  return best;
+}
+function computeGroupSpread(group, unitsById) {
+  const returns = group.combos.map(c => (unitsById.get(c.id) || 0) * c.odds);
+  const min = Math.min(...returns);
+  const max = Math.max(...returns);
+  return { min, max, spread: max - min };
+}
+function getGroupStats(group, unitsById, totalUnits) {
+  let minRate = Infinity;
+  let maxRate = -Infinity;
+  let rateSum = 0;
+  const returns = group.combos.map(combo => {
+    const returnFactor = (unitsById.get(combo.id) || 0) * combo.odds;
+    const rate = returnFactor / totalUnits - 1;
+    minRate = Math.min(minRate, rate);
+    maxRate = Math.max(maxRate, rate);
+    rateSum += rate;
+    return returnFactor;
+  });
+  return {
+    minRate,
+    maxRate,
+    avgRate: rateSum / group.combos.length,
+    minReturnFactor: Math.min(...returns),
+    maxReturnFactor: Math.max(...returns)
+  };
+}
+function getGroupActualStats(group, plan) {
+  const combos = group.combos.map(gc => plan.combos.find(c => c.id === gc.id)).filter(Boolean);
+  const rates = combos.map(c => c.rate);
+  const avgRate = rates.reduce((s, r) => s + r, 0) / rates.length;
+  return {
+    avgRate,
+    minRate: Math.min(...rates),
+    maxRate: Math.max(...rates)
+  };
+}
+function computeGroupTargetError(expectedGroups, plan) {
+  if (!expectedGroups || !expectedGroups.length) return 0;
+  return expectedGroups.reduce((total, group) => {
+    const stats = getGroupActualStats(group, plan);
+    return total + Math.abs(group.targetRate - stats.avgRate);
+  }, 0);
+}
+function computeFloorAnchorError(expectedGroups, plan, settings) {
+  if (!expectedGroups || !expectedGroups.length) return 0;
+  const lowestGroup = expectedGroups[expectedGroups.length - 1];
+  const stats = getGroupActualStats(lowestGroup, plan);
+  return Math.max(0, stats.avgRate - settings.floorRate);
+}
+function chooseGroupForRemainingUnit(groups, unitsById, totalUnits, settings) {
+  let target = groups[0];
+  let bestNeed = -Infinity;
+  groups.forEach(group => {
+    const stats = getGroupStats(group, unitsById, totalUnits);
+    const need = group.targetRate - stats.avgRate;
+    if (need > bestNeed + 1e-12) {
+      bestNeed = need;
+      target = group;
+      return;
+    }
+    if (Math.abs(need - bestNeed) < 1e-12) {
+      const targetStats = getGroupStats(target, unitsById, totalUnits);
+      if (settings.sortMode === "minRate") {
+        if (stats.minRate < targetStats.minRate) target = group;
+      } else if (settings.sortMode === "maxRate") {
+        if (group.expectedValue > target.expectedValue) target = group;
+      } else if (stats.avgRate < targetStats.avgRate) {
+        target = group;
+      }
+    }
+  });
+  return target;
+}
+function chooseComboWithinGroup(group, unitsById) {
+  return chooseInGroupBalanceTarget(group.combos, unitsById);
+}
+function evaluatePlan(combos, units, sortMode) {
+  const totalUnits = sum(units);
+  const stake = totalUnits * 2;
+  let minRate = Infinity;
+  let maxRate = -Infinity;
+  let minReturn = Infinity;
+  let maxReturn = -Infinity;
+  let weightedAvgRate = 0;
+  let plainRateSum = 0;
+  let maxConfidenceComboIndex = 0;
+
+  const evaluatedCombos = combos.map((combo, index) => {
+    const amount = units[index] * 2;
+    const returnAmount = amount * combo.odds;
+    const profit = returnAmount - stake;
+    const rate = profit / stake;
+    minRate = Math.min(minRate, rate);
+    maxRate = Math.max(maxRate, rate);
+    minReturn = Math.min(minReturn, returnAmount);
+    maxReturn = Math.max(maxReturn, returnAmount);
+    weightedAvgRate += combo.confidenceWeight * rate;
+    plainRateSum += rate;
+    if (isBetterConfidenceCombo(combo, combos[maxConfidenceComboIndex])) {
+      maxConfidenceComboIndex = index;
+    }
+    return { ...combo, units: units[index], amount, returnAmount, profit, rate };
+  });
+
+  const maxConfidenceComboRate = evaluatedCombos[maxConfidenceComboIndex].rate;
+  let score = minRate;
+  const plainAvgRate = plainRateSum / combos.length;
+  if (sortMode === "avgRate") score = plainAvgRate;
+  if (sortMode === "maxRate") score = maxRate;
+
+  return {
+    combos: evaluatedCombos,
+    units: units.slice(),
+    stake,
+    totalUnits,
+    minReturn,
+    maxReturn,
+    minRate,
+    maxRate,
+    weightedAvgRate,
+    plainAvgRate,
+    maxConfidenceComboIndex,
+    maxConfidenceComboRate,
+    satisfiesExpectedOrder: !hasExpectedOrder(combos) || respectsExpectedOrder(combos, units),
+    maxGroupSpread: 0,
+    maxGroupRateSpread: 0,
+    score
+  };
+}
+function selectBestPlan(candidates, sortMode, tolerance) {
+  if (!candidates.length) return null;
+  function isBetterRecommended(plan, current) {
+    if (!current) return true;
+    const floorDelta = (plan.floorAnchorError || 0) - (current.floorAnchorError || 0);
+    if (Math.abs(floorDelta) > 1e-12) return floorDelta < 0;
+    const targetDelta = (plan.groupTargetError || 0) - (current.groupTargetError || 0);
+    if (Math.abs(targetDelta) > 1e-12) return targetDelta < 0;
+    const spreadDelta = plan.maxGroupRateSpread - current.maxGroupRateSpread;
+    if (Math.abs(spreadDelta) > 1e-12) return spreadDelta < 0;
+    if (plan.stake !== current.stake) return plan.stake < current.stake;
+    return plan.score > current.score;
+  }
+  let best = candidates[0];
+  candidates.forEach(plan => {
+    if (plan.score > best.score + 1e-12 ||
+        (Math.abs(plan.score - best.score) < 1e-12 && (plan.groupTargetError || 0) < (best.groupTargetError || 0) - 1e-12) ||
+        (Math.abs(plan.score - best.score) < 1e-12 &&
+         Math.abs((plan.groupTargetError || 0) - (best.groupTargetError || 0)) < 1e-12 &&
+         plan.stake < best.stake)) {
+      best = plan;
+    }
+  });
+  const toleranceRate = tolerance / 100;
+  const threshold = best.score - toleranceRate;
+  let recommended = null;
+  candidates.forEach(plan => {
+    if (plan.score >= threshold) {
+      if (isBetterRecommended(plan, recommended)) {
+        recommended = plan;
+      }
+    }
+  });
+  return { recommended, best, gap: best.score - recommended.score };
+}
+function buildCandidateUnitList(minUnits, maxUnits) {
+  const set = new Set();
+  for (let u = minUnits; u <= Math.min(maxUnits, minUnits + 20); u += 1) set.add(u);
+  for (let u = Math.max(minUnits, maxUnits - 20); u <= maxUnits; u += 1) set.add(u);
+  const span = maxUnits - minUnits;
+  if (span > 0) {
+    const steps = 40;
+    for (let i = 0; i <= steps; i += 1) {
+      const u = Math.round(minUnits + (span * i) / steps);
+      if (u >= minUnits && u <= maxUnits) set.add(u);
+    }
+  }
+  if (maxUnits - minUnits <= 80) {
+    for (let u = minUnits; u <= maxUnits; u += 1) set.add(u);
+  }
+  return Array.from(set).sort((a, b) => a - b);
+}
+function refineCandidateUnitList(bestUnits, minUnits, maxUnits, radius) {
+  const list = [];
+  const start = Math.max(minUnits, bestUnits - radius);
+  const end = Math.min(maxUnits, bestUnits + radius);
+  for (let u = start; u <= end; u += 1) list.push(u);
+  return list;
+}
+function keepTopCandidates(candidates, limit) {
+  candidates.sort((a, b) => {
+    if (Math.abs(b.score - a.score) > 1e-12) return b.score - a.score;
+    if (Math.abs((a.floorAnchorError || 0) - (b.floorAnchorError || 0)) > 1e-12) {
+      return (a.floorAnchorError || 0) - (b.floorAnchorError || 0);
+    }
+    if (Math.abs((a.groupTargetError || 0) - (b.groupTargetError || 0)) > 1e-12) {
+      return (a.groupTargetError || 0) - (b.groupTargetError || 0);
+    }
+    if (Math.abs(a.maxGroupRateSpread - b.maxGroupRateSpread) > 1e-12) {
+      return a.maxGroupRateSpread - b.maxGroupRateSpread;
+    }
+    return a.stake - b.stake;
+  });
+  if (candidates.length > limit) candidates.length = limit;
+}
+function computeBestIntegerMinRate(combos, settings) {
+  const maxUnits = Math.floor(settings.budgetMax / 2);
+  const minUnits = combos.length;
+  let bestPlan = null;
+  const searchedUnits = new Set();
+  function tryUnit(U) {
+    if (searchedUnits.has(U)) return;
+    searchedUnits.add(U);
+    const units = combos.map(() => 1);
+    let remain = U - minUnits;
+    while (remain > 0) {
+      const idx = chooseExtraUnitTarget(combos, units, U);
+      units[idx] += 1;
+      remain -= 1;
+    }
+    const plan = evaluatePlan(combos, units, "minRate");
+    if (!bestPlan || plan.minRate > bestPlan.minRate + 1e-12 ||
+        (Math.abs(plan.minRate - bestPlan.minRate) < 1e-12 && plan.stake < bestPlan.stake)) {
+      bestPlan = plan;
+    }
+  }
+  buildCandidateUnitList(minUnits, maxUnits).forEach(tryUnit);
+  if (bestPlan) {
+    refineCandidateUnitList(bestPlan.totalUnits, minUnits, maxUnits, 15).forEach(tryUnit);
+  }
+  return { bestMinRate: bestPlan ? bestPlan.minRate : -Infinity, bestPlan };
+}
+function generateGroupedHedgePlan(combos, totalUnits, settings, metrics) {
+  const L = settings.floorRate;
+  const groups = buildExpectedGroups(combos, settings, metrics);
+  const targetRateById = new Map();
+  const groupRankById = new Map();
+  groups.forEach(group => {
+    group.combos.forEach(combo => {
+      targetRateById.set(combo.id, group.targetRate);
+      groupRankById.set(combo.id, group.rank);
+    });
+  });
+  const targetCombos = combos.map(combo => ({
+    ...combo,
+    targetRate: targetRateById.get(combo.id),
+    expectedGroupRank: groupRankById.get(combo.id)
+  }));
+  const targetGroups = buildExpectedGroups(targetCombos, settings, metrics);
+  const units = targetCombos.map(combo => Math.max(1, Math.ceil(totalUnits * (1 + L) / combo.odds)));
+  const used = sum(units);
+  if (used > totalUnits) return null;
+
+  const unitsById = unitsArrayToMap(targetCombos, units);
+  let remain = totalUnits - used;
+  while (remain > 0) {
+    const violation = findGroupOrderViolation(targetGroups, unitsById);
+    if (!violation) break;
+    unitsById.set(violation.targetComboId, (unitsById.get(violation.targetComboId) || 0) + 1);
+    remain -= 1;
+  }
+  if (!respectsGroupOrder(targetGroups, unitsById)) return null;
+
+  while (remain > 0) {
+    const violation = findGroupOrderViolation(targetGroups, unitsById);
+    if (violation) {
+      unitsById.set(violation.targetComboId, (unitsById.get(violation.targetComboId) || 0) + 1);
+      remain -= 1;
+      continue;
+    }
+    const group = chooseGroupForRemainingUnit(targetGroups, unitsById, totalUnits, settings);
+    const comboId = chooseComboWithinGroup(group, unitsById);
+    unitsById.set(comboId, (unitsById.get(comboId) || 0) + 1);
+    remain -= 1;
+  }
+
+  if (!respectsGroupOrder(targetGroups, unitsById)) return null;
+  const finalUnits = unitsMapToArray(targetCombos, unitsById);
+  const plan = evaluatePlan(targetCombos, finalUnits, settings.sortMode);
+  if (plan.combos.some(combo => combo.rate + 1e-12 < L)) return null;
+  if (!plan.satisfiesExpectedOrder) return null;
+  plan.expectedGroups = targetGroups.map(group => ({
+    ...group,
+    spread: computeGroupSpread(group, unitsById)
+  }));
+  plan.maxGroupSpread = Math.max(...plan.expectedGroups.map(group => group.spread.spread));
+  plan.maxGroupRateSpread = Math.max(...plan.expectedGroups.map(group => {
+    const rates = group.combos.map(gc => plan.combos.find(c => c.id === gc.id).rate);
+    return Math.max(...rates) - Math.min(...rates);
+  }));
+  plan.groupTargetError = computeGroupTargetError(plan.expectedGroups, plan);
+  plan.floorAnchorError = computeFloorAnchorError(plan.expectedGroups, plan, settings);
+  if (settings.sortMode === "maxRate") {
+    const topGroup = plan.expectedGroups[0];
+    plan.score = Math.min(...topGroup.combos.map(gc => plan.combos.find(c => c.id === gc.id).rate));
+  }
+  plan.groupBalanced = plan.expectedGroups.every(group => {
+    if (group.combos.length <= 1) return true;
+    return group.spread.spread <= Math.max(4, group.spread.max * 0.35);
+  });
+  return plan;
+}
+
+function generateTargetBasedPlan(combos, totalUnits, settings, metrics) {
+  return generateGroupedHedgePlan(combos, totalUnits, settings, metrics);
+}
+
+/* Legacy target-rate flow kept only for reference while grouped hedge is active.
+function generateUngroupedTargetBasedPlan(combos, totalUnits, settings, metrics) {
+  const L = settings.floorRate;
+  const effectiveTiltRatio = getEffectiveTiltRatio(settings);
+  const targetCombos = combos.map(combo => ({
+    ...combo,
+    targetRate: L + effectiveTiltRatio * metrics.tiltSpace * combo.tiltNormalized
+  }));
+  const units = targetCombos.map(combo => Math.max(1, Math.ceil(totalUnits * (1 + L) / combo.odds)));
+  const used = sum(units);
+  if (used > totalUnits) return null;
+
+  let remain = totalUnits - used;
+  const needOrder = hasExpectedOrder(targetCombos);
+  while (needOrder && remain > 0 && !respectsExpectedOrder(targetCombos, units)) {
+    const violation = findExpectedOrderViolation(targetCombos, units);
+    if (!violation) break;
+    units[violation.highIndex] += 1;
+    remain -= 1;
+  }
+  if (needOrder && !respectsExpectedOrder(targetCombos, units)) return null;
+
+  while (remain > 0) {
+    const targetIndex = chooseRemainingUnitTarget(targetCombos, units, totalUnits, settings, metrics);
+    units[targetIndex] += 1;
+    remain -= 1;
+
+    if (needOrder && !respectsExpectedOrder(targetCombos, units)) {
+      units[targetIndex] -= 1;
+      remain += 1;
+      const violation = findExpectedOrderViolation(targetCombos, units);
+      if (!violation) break;
+      units[violation.highIndex] += 1;
+      remain -= 1;
+    }
+  }
+  if (needOrder && !respectsExpectedOrder(targetCombos, units)) return null;
+  const plan = evaluatePlan(targetCombos, units, settings.sortMode);
+  if (plan.combos.some(combo => combo.rate + 1e-12 < L)) return null;
+  if (needOrder && !plan.satisfiesExpectedOrder) return null;
+  return plan;
+}
+*/
+function optimizeWithRateFloor(combos, settings) {
+  if (combos.length > 256) throw new Error("当前组合数为 " + combos.length + "，超过 256。请减少比赛数量或减少选择结果。");
+  const maxUnits = Math.floor(settings.budgetMax / 2);
+  const minUnits = combos.length;
+  if (maxUnits < minUnits) throw new Error("预算上限不足。当前 " + combos.length + " 个组合至少需要 " + fmtMoney(combos.length * 2) + "。");
+
+  const theoreticalMaxMinRate = computeTheoreticalMaxMinRate(combos);
+  const integerInfo = computeBestIntegerMinRate(combos, settings);
+  const tiltSpace = Math.max(0, integerInfo.bestMinRate - settings.floorRate);
+  const metrics = { theoreticalMaxMinRate, integerMaxMinRate: integerInfo.bestMinRate, tiltSpace };
+  const candidates = [];
+  const unitCandidates = buildCandidateUnitList(minUnits, maxUnits);
+  const searchedUnits = new Set();
+  let bestDuringSearch = null;
+
+  if (settings.floorRate <= integerInfo.bestMinRate + 1e-12) {
+    function tryUnit(U) {
+      if (searchedUnits.has(U)) return;
+      searchedUnits.add(U);
+      const plan = generateTargetBasedPlan(combos, U, settings, metrics);
+      if (!plan) return;
+      candidates.push(plan);
+      keepTopCandidates(candidates, 100);
+      if (!bestDuringSearch || plan.score > bestDuringSearch.score + 1e-12 ||
+          (Math.abs(plan.score - bestDuringSearch.score) < 1e-12 && (plan.groupTargetError || 0) < (bestDuringSearch.groupTargetError || 0) - 1e-12)) {
+        bestDuringSearch = plan;
+      }
+    }
+    unitCandidates.forEach(tryUnit);
+    if (bestDuringSearch) {
+      refineCandidateUnitList(bestDuringSearch.totalUnits, minUnits, maxUnits, 15).forEach(tryUnit);
+      keepTopCandidates(candidates, 100);
+    }
+  }
+
+  const selected = selectBestPlan(candidates, settings.sortMode, settings.tolerance);
+  const searchMode = (maxUnits - minUnits <= 80) ? "全量搜索" : "快速搜索";
+  return {
+    feasible: Boolean(selected),
+    theoreticalMaxMinRate,
+    integerMaxMinRate: integerInfo.bestMinRate,
+    tiltSpace,
+    integerBestPlan: integerInfo.bestPlan,
+    candidates,
+    recommended: selected ? selected.recommended : null,
+    best: selected ? selected.best : null,
+    gap: selected ? selected.gap : 0,
+    settings,
+    searchInfo: {
+      comboCount: combos.length,
+      unitCandidateCount: searchedUnits.size,
+      mode: searchMode
+    }
+  };
+}
+
+function sortCombosForDisplay(combos) {
+  return combos.slice().sort((a, b) => {
+    if (Math.abs(b.expectedValue - a.expectedValue) > 1e-12) {
+      return b.expectedValue - a.expectedValue;
+    }
+    return a.odds - b.odds;
+  });
+}
+function getExpectedRankMap(combos) {
+  const sorted = sortCombosForDisplay(combos);
+  const ranks = new Map();
+  let rank = 0;
+  let previousValue = null;
+  sorted.forEach((combo, index) => {
+    if (previousValue === null || Math.abs(combo.expectedValue - previousValue) > 1e-12) {
+      rank = index + 1;
+      previousValue = combo.expectedValue;
+    }
+    ranks.set(combo.id, rank);
+  });
+  return ranks;
+}
+function renderSummary(result, state) {
+  const rec = result.recommended;
+  const items = [
+    ["推荐投入", rec ? fmtMoney(rec.stake) : "-"],
+    ["总注数", rec ? rec.totalUnits + " 注" : "-"],
+    ["组合数", result.searchInfo ? result.searchInfo.comboCount + " 个" : "-"],
+    ["搜索模式", result.searchInfo ? result.searchInfo.mode : "-"],
+    ["候选注数", result.searchInfo ? result.searchInfo.unitCandidateCount + " 个" : "-"],
+    ["筛选方式", sortModeName(state.settings.sortMode)],
+    ["可接受最低收益率", fmtRate(state.settings.floorRate), state.settings.floorRate >= 0 ? "positive" : "negative"],
+    ["理论均衡收益率", fmtRate(result.theoreticalMaxMinRate), result.theoreticalMaxMinRate >= 0 ? "positive" : "negative"],
+    ["预算内整数可实现均衡收益率", fmtRate(result.integerMaxMinRate), result.integerMaxMinRate >= 0 ? "positive" : "negative"],
+    ["可倾斜空间", fmtRate(result.tiltSpace), result.tiltSpace > 0 ? "positive" : ""],
+    ["收益倾斜比例", state.settings.tiltRatioInput.toFixed(0) + "%"],
+    ["赔率参考比例", state.settings.marketWeightInput.toFixed(0) + "%"],
+    ["推荐方案最低收益率", rec ? fmtRate(rec.minRate) : "-", rec && rec.minRate >= 0 ? "positive" : rec ? "negative" : ""],
+    ["推荐方案平均收益率", rec ? fmtRate(rec.plainAvgRate) : "-", rec && rec.plainAvgRate >= 0 ? "positive" : rec ? "negative" : ""],
+    ["推荐方案最高收益率", rec ? fmtRate(rec.maxRate) : "-", rec && rec.maxRate >= 0 ? "positive" : rec ? "negative" : ""],
+    ["是否满足期望排序", rec ? (rec.satisfiesExpectedOrder ? "是" : "否") : "-"],
+    ["组内是否均衡", rec ? (rec.groupBalanced ? "是" : "否") : "-"],
+    ["组目标误差", rec ? (rec.groupTargetError * 100).toFixed(3) + " 个百分点" : "-"],
+    ["低期望组贴底线误差", rec ? (rec.floorAnchorError * 100).toFixed(3) + " 个百分点" : "-"],
+    ["最高期望组目标收益率", rec && rec.expectedGroups.length ? fmtRate(rec.expectedGroups[0].targetRate) : "-"],
+    ["最低期望组目标收益率", rec && rec.expectedGroups.length ? fmtRate(rec.expectedGroups[rec.expectedGroups.length - 1].targetRate) : "-"],
+    ["与最优 score 差距", rec ? (result.gap * 100).toFixed(3) + " 个百分点" : "-"]
+  ];
+  el.summary.innerHTML = items.map(item => `
+    <div class="stat"><div class="name">${item[0]}</div><div class="value ${item[2] || ""}">${item[1]}</div></div>
+  `).join("");
+}
+function renderBetTable(result) {
+  el.tbody.innerHTML = "";
+  if (!result.recommended) return;
+  const rankMap = getExpectedRankMap(result.recommended.combos);
+  sortCombosForDisplay(result.recommended.combos).forEach(combo => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${rankMap.get(combo.id)}</td>
+      <td>第 ${combo.id} 注</td>
+      <td>${combo.matchNames}</td>
+      <td>${escapeHtml(combo.displayName)}</td>
+      <td>${fmtOdds(combo.odds)}</td>
+      <td>${combo.subjectiveValue.toFixed(4)}</td>
+      <td>${combo.marketValue.toFixed(4)}</td>
+      <td>${combo.expectedValue.toFixed(4)}</td>
+      <td>${fmtRate(combo.targetRate)}</td>
+      <td>${combo.units} 注</td>
+      <td>${fmtMoney(combo.amount)}</td>
+      <td>${fmtMoney(combo.returnAmount)}</td>
+      <td class="${combo.profit >= 0 ? "positive" : "negative"}">${fmtMoney(combo.profit)}</td>
+      <td class="${combo.rate >= 0 ? "positive" : "negative"}">${fmtRate(combo.rate)}</td>
+    `;
+    el.tbody.appendChild(tr);
+  });
+}
+function buildCopyText(result, state) {
+  const matchText = state.matches.map((match, index) => {
+    const selected = getSelectedOutcomes(match).map(o => resultText(match, o.key)).join(" / ");
+    const extra = getSelectedOutcomes(match).length === 2
+      ? "；更看好：" + resultText(match, match.favoredOutcome) + "；信心：" + match.confidence + "%"
+      : "";
+    return "第 " + (index + 1) + " 场：" + match.home + " vs " + match.away + "；选择：" + selected + extra;
+  }).join("\n");
+  const rankMap = result.recommended ? getExpectedRankMap(result.recommended.combos) : new Map();
+  const rows = result.recommended ? sortCombosForDisplay(result.recommended.combos).map(combo =>
+    "期望排序 " + rankMap.get(combo.id) + "；第 " + combo.id + " 注：" + combo.displayName +
+    "；主观期望 " + combo.subjectiveValue.toFixed(4) +
+    "；市场期望 " + combo.marketValue.toFixed(4) +
+    "；最终期望 " + combo.expectedValue.toFixed(4) +
+    "；赔率 " + fmtOdds(combo.odds) +
+    "；目标收益率 " + fmtRate(combo.targetRate) +
+    "；实际收益率 " + fmtRate(combo.rate) +
+    "；买 " + combo.units + " 注" +
+    "；命中返还 " + fmtMoney(combo.returnAmount)
+  ).join("\n") : "当前条件下无可行推荐方案。";
+  const groupText = result.recommended && result.recommended.expectedGroups ? result.recommended.expectedGroups.map(group => {
+    const stats = getGroupActualStats(group, result.recommended);
+    return "期望组 " + group.rank +
+      "；期望值 " + group.expectedValue.toFixed(4) +
+      "；目标收益率 " + fmtRate(group.targetRate) +
+      "；实际平均收益率 " + fmtRate(stats.avgRate) +
+      "；实际最低收益率 " + fmtRate(stats.minRate) +
+      "；实际最高收益率 " + fmtRate(stats.maxRate) +
+      "；组内返还差距 " + group.spread.spread.toFixed(3);
+  }).join("\n") : "-";
+
+  return `足球串关计算器 v2
+预算上限：${fmtMoney(state.settings.budgetMax)}
+推荐投入：${result.recommended ? fmtMoney(result.recommended.stake) : "-"}
+总注数：${result.recommended ? result.recommended.totalUnits + " 注" : "-"}
+可接受最低收益率：${fmtRate(state.settings.floorRate)}
+理论均衡收益率：${fmtRate(result.theoreticalMaxMinRate)}
+预算内整数可实现均衡收益率：${fmtRate(result.integerMaxMinRate)}
+可倾斜空间：${fmtRate(result.tiltSpace)}
+收益倾斜比例：${state.settings.tiltRatioInput.toFixed(0)}%
+赔率参考比例：${state.settings.marketWeightInput.toFixed(0)}%
+筛选方式：${sortModeName(state.settings.sortMode)}
+推荐方案最低收益率：${result.recommended ? fmtRate(result.recommended.minRate) : "-"}
+推荐方案平均收益率：${result.recommended ? fmtRate(result.recommended.plainAvgRate) : "-"}
+推荐方案最高收益率：${result.recommended ? fmtRate(result.recommended.maxRate) : "-"}
+是否满足期望排序：${result.recommended ? (result.recommended.satisfiesExpectedOrder ? "是" : "否") : "-"}
+组内是否均衡：${result.recommended ? (result.recommended.groupBalanced ? "是" : "否") : "-"}
+组目标误差：${result.recommended ? (result.recommended.groupTargetError * 100).toFixed(3) + " 个百分点" : "-"}
+低期望组贴底线误差：${result.recommended ? (result.recommended.floorAnchorError * 100).toFixed(3) + " 个百分点" : "-"}
+
+期望分组：
+${groupText}
+
+比赛选择：
+${matchText}
+
+每注购买清单：
+${rows}`;
+}
+
+function showError(message) {
+  el.error.textContent = message;
+  el.error.style.display = "block";
+}
+function showNotice(message) {
+  el.notice.textContent = message;
+  el.notice.style.display = "block";
+}
+function markDirty() {
+  latestCopyText = "";
+  showNotice("参数已修改，请点击“计算推荐方案”重新计算。");
+}
+function clearMessages() {
+  el.error.style.display = "none";
+  el.notice.style.display = "none";
+  el.fallback.style.display = "none";
+}
+function setCalculating(isCalculating) {
+  const calcBtn = document.getElementById("calcBtn");
+  if (!calcBtn) return;
+  calcBtn.disabled = isCalculating;
+  calcBtn.textContent = isCalculating ? "正在计算..." : "计算推荐方案";
+}
+async function calculate() {
+  clearMessages();
+  setCalculating(true);
+  try {
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const state = readStateFromPage();
+    validateState(state);
+    const combos = generateCombos(state.matches, state.settings);
+    const result = optimizeWithRateFloor(combos, state.settings);
+    renderSummary(result, state);
+    renderBetTable(result);
+    latestCopyText = buildCopyText(result, state);
+
+    if (!result.feasible) {
+      if (state.settings.floorRate > result.integerMaxMinRate + 1e-12) {
+        showError("当前预算和赔率下，无法保证所有结果至少达到 " + fmtRate(state.settings.floorRate) + " 收益率。预算内整数可实现均衡收益率为 " + fmtRate(result.integerMaxMinRate) + "。请降低可接受最低收益率、提高预算上限，或减少覆盖结果。");
+      } else {
+        showError("当前预算、赔率和期望分组约束下，无法生成满足条件的整数注数方案。请提高预算、降低可接受最低收益率、降低收益倾斜比例，或减少覆盖组合。");
+      }
+      return;
+    }
+    if (combos.length > 128) {
+      showNotice("当前组合数较多，已使用快速搜索模式。结果为预算内近似最优，而非全量枚举最优。");
+    }
+    if (result.recommended.stake !== result.best.stake) {
+      showNotice("已按容忍度推荐更低投入方案；与最优 score 差距为 " + (result.gap * 100).toFixed(3) + " 个百分点。");
+    }
+  } catch (err) {
+    el.tbody.innerHTML = "";
+    showError(err.message || String(err));
+  } finally {
+    setCalculating(false);
+  }
+}
+
+function clampConfidence(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 50;
+  return Math.max(50, Math.min(100, Math.round(number)));
+}
+function syncConfidenceControls(card, value, skipNumber) {
+  const safeValue = clampConfidence(value);
+  const label = card.querySelector(".js-confidence-label");
+  const range = card.querySelector(".js-confidence");
+  const number = card.querySelector(".js-confidence-number");
+  if (label) label.textContent = "信心程度：" + safeValue + "%";
+  if (range) range.value = safeValue;
+  if (number && !skipNumber) number.value = safeValue;
+}
+function handleMatchInput(event) {
+  const card = event.target.closest(".match");
+  if (!card) return;
+  const index = Number(card.dataset.index);
+  const match = matches[index];
+  if (event.target.classList.contains("js-home")) match.home = event.target.value;
+  if (event.target.classList.contains("js-away")) match.away = event.target.value;
+  if (event.target.classList.contains("js-odds")) {
+    match.odds[event.target.dataset.key] = Number(event.target.value);
+    if (!match.selectionTouched) autoSelectLowestTwo(match);
+    updateDefaultFavoredOutcome(index);
+    renderMatches();
+  }
+  if (event.target.classList.contains("js-confidence") || event.target.classList.contains("js-confidence-number")) {
+    match.confidence = clampConfidence(event.target.value);
+    syncConfidenceControls(card, match.confidence, event.target.classList.contains("js-confidence-number"));
+  }
+  markDirty();
+}
+function handleMatchChange(event) {
+  const card = event.target.closest(".match");
+  if (!card) return;
+  const index = Number(card.dataset.index);
+  const match = matches[index];
+  if (event.target.classList.contains("js-selected")) {
+    const key = event.target.dataset.key;
+    match.selectionTouched = true;
+    if (event.target.checked) {
+      if (match.selected.length >= 2) {
+        event.target.checked = false;
+        showError("每场暂时最多选择 2 个结果。");
+        return;
+      }
+      match.selected.push(key);
+    } else {
+      match.selected = match.selected.filter(item => item !== key);
+    }
+    match.favoredTouched = false;
+    updateDefaultFavoredForMatch(match, true);
+    renderMatches();
+    markDirty();
+  }
+  if (event.target.classList.contains("js-favored")) {
+    match.favoredOutcome = event.target.value;
+    match.favoredTouched = true;
+    markDirty();
+  }
+  if (event.target.classList.contains("js-confidence-number")) {
+    match.confidence = clampConfidence(event.target.value);
+    syncConfidenceControls(card, match.confidence, false);
+    markDirty();
+  }
+  if (event.target.classList.contains("js-confidence")) {
+    match.confidence = clampConfidence(event.target.value);
+    syncConfidenceControls(card, match.confidence, false);
+    markDirty();
+  }
+}
+function handleMatchClick(event) {
+  const card = event.target.closest(".match");
+  if (!card) return;
+  const index = Number(card.dataset.index);
+  if (event.target.classList.contains("js-delete")) {
+    if (matches.length <= 1) return;
+    matches.splice(index, 1);
+    renderMatches();
+    markDirty();
+  }
+}
+async function copyList() {
+  if (!latestCopyText) await calculate();
+  if (!latestCopyText) return;
+  try {
+    await navigator.clipboard.writeText(latestCopyText);
+    showNotice("已复制购买清单。");
+  } catch (err) {
+    el.fallback.value = latestCopyText;
+    el.fallback.style.display = "block";
+    el.fallback.focus();
+    el.fallback.select();
+    showError("复制失败，请在下方文本框中手动复制。");
+  }
+}
+function init() {
+  matches = [0, 1, 2].map(createDefaultMatch);
+  renderMatches();
+  calculate();
+}
+
+document.getElementById("addMatchBtn").addEventListener("click", () => {
+  matches.push(createDefaultMatch(matches.length));
+  renderMatches();
+  markDirty();
+});
+document.getElementById("calcBtn").addEventListener("click", calculate);
+document.getElementById("copyBtn").addEventListener("click", copyList);
+document.getElementById("budgetMax").addEventListener("input", markDirty);
+document.getElementById("floorRate").addEventListener("input", markDirty);
+document.getElementById("tiltRatio").addEventListener("input", markDirty);
+document.getElementById("marketWeight").addEventListener("input", markDirty);
+document.getElementById("sortMode").addEventListener("change", markDirty);
+document.getElementById("tolerance").addEventListener("input", markDirty);
+el.matches.addEventListener("input", handleMatchInput);
+el.matches.addEventListener("change", handleMatchChange);
+el.matches.addEventListener("click", handleMatchClick);
+
+init();
+</script>
+</body>
+</html>
