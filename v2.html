@@ -19,6 +19,7 @@
     input,select,textarea{width:100%;min-height:44px;border:1px solid var(--border);border-radius:10px;padding:10px;background:#fff;color:var(--text);font-size:16px;outline:none}
     input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(23,107,91,.13)}
     input[type=range]{padding:0;border:0;background:transparent;box-shadow:none}
+    .percent-field{position:relative;display:block}.percent-field input{padding-right:30px}.percent-field::after{content:"%";position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;pointer-events:none}
     button{min-height:44px;border:0;border-radius:10px;padding:10px 13px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer}
     button.secondary{background:#eaf0fb;color:var(--accent2)}button.danger{background:#fee4e2;color:var(--danger)}button:disabled{opacity:.45}
     .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
@@ -30,7 +31,7 @@
     .check{display:flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);font-size:15px;user-select:none}
     .check input{width:18px;min-height:18px;height:18px;accent-color:var(--accent)}
     .confidence{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;border:1px solid #cfe2dc;border-radius:12px;background:#f2faf7}
-    .confidence-control{display:grid;grid-template-columns:minmax(0,1fr)82px;gap:8px;align-items:center}.confidence-number{text-align:center}
+    .confidence-control{display:grid;grid-template-columns:minmax(0,1fr)82px;gap:8px;align-items:center}.confidence-number{text-align:center;padding-right:24px}
     .summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
     .stat{min-height:82px;padding:11px;border:1px solid var(--border);border-radius:12px;background:var(--soft)}
     .stat .name{color:var(--muted);font-size:12px;margin-bottom:6px}.stat .value{font-size:17px;font-weight:800;word-break:break-word}
@@ -74,18 +75,18 @@
       </div>
       <div>
         <label for="floorRate">可接受最低收益率</label>
-        <input id="floorRate" type="number" inputmode="decimal" step="0.5" value="0">
+        <span class="percent-field"><input id="floorRate" type="number" inputmode="decimal" step="0.5" value="0"></span>
         <div class="small">单位：%。10 表示至少盈利 10%，-5 表示允许最差亏 5%。</div>
       </div>
       <div>
         <label for="tiltRatio">收益倾斜比例</label>
-        <input id="tiltRatio" type="number" inputmode="decimal" min="0" max="100" step="5" value="50">
+        <span class="percent-field"><input id="tiltRatio" type="number" inputmode="decimal" min="0" max="100" step="5" value="50"></span>
         <div class="small">0% 尽量均衡；50% 适度倾斜；100% 尽量使用可倾斜空间。</div>
       </div>
       <div>
-        <label for="marketWeight">赔率参考比例</label>
-        <input id="marketWeight" type="number" inputmode="decimal" min="10" max="100" step="5" value="100">
-        <div class="small">单位：%。最低 10%，确保赔率倒数始终参与最终期望。</div>
+        <label for="subjectiveWeight">主观信心权重</label>
+        <span class="percent-field"><input id="subjectiveWeight" type="number" inputmode="decimal" min="0" max="90" step="5" value="0"></span>
+        <div class="small">最高 90%。剩余部分自动参考赔率倒数隐含概率。</div>
       </div>
       <div>
         <label for="sortMode">筛选方式</label>
@@ -96,7 +97,7 @@
         </select>
       </div>
     </div>
-    <p class="hint">程序先筛选出所有命中结果收益率都不低于可接受最低收益率的整数方案，再按目标收益率分层逼近，让高信心组合收益更高但不无限放大。最终期望值由用户信心和赔率倒数隐含概率融合得到。赔率参考比例越高，排序越接近市场赔率；赔率参考比例越低，排序越接近你的主观信心。</p>
+    <p class="hint">程序先筛选出所有命中结果收益率都不低于可接受最低收益率的整数方案，再按目标收益率分层逼近，让高信心组合收益更高但不无限放大。最终期望值由用户信心和赔率倒数隐含概率融合得到；主观信心权重越高，排序越接近你的判断，剩余权重自动参考赔率隐含概率。</p>
     <p class="hint">可倾斜空间 = 预算内整数可实现均衡收益率 - 可接受最低收益率。空间不足时会自然退化为接近底线约束的方案。</p>
     <div class="actions">
       <button id="calcBtn">计算推荐方案</button>
@@ -118,7 +119,7 @@
       <table>
         <thead>
           <tr>
-            <th>编号</th><th>结果组合</th><th>最终期望</th><th>串关赔率</th><th>买几注</th><th>购买金额</th><th>命中返还</th><th>净收益</th><th>收益率</th>
+            <th>编号</th><th>比赛</th><th>投注选项</th><th>结果说明</th><th>最终期望</th><th>串关赔率</th><th>买几注</th><th>购买金额</th><th>命中返还</th><th>净收益</th><th>收益率</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -239,16 +240,25 @@ function getDrawSubject(match) {
   }
   return match.home;
 }
-function resultText(match, key) {
+function betCodeText(key) {
+  if (key === "win") return "\u4e3b\u80dc";
+  if (key === "draw") return "\u4e3b\u5e73";
+  return "\u4e3b\u8d1f";
+}
+function humanResultText(match, key) {
   if (key === "win") return match.home + "胜";
   if (key === "draw") return getDrawSubject(match) + "平";
   return match.away + "胜";
+}
+function resultText(match, key) {
+  return humanResultText(match, key);
 }
 
 function renderMatches() {
   el.matches.innerHTML = "";
   matches.forEach((match, index) => {
     const selectedCount = getSelectedOutcomes(match).length;
+    const tabBase = index * 5 + 1;
     const div = document.createElement("div");
     div.className = "match";
     div.dataset.index = index;
@@ -258,33 +268,33 @@ function renderMatches() {
         <button class="danger js-delete" type="button" ${matches.length <= 1 ? "disabled" : ""}>删除</button>
       </div>
       <div class="team-row">
-        <div><label>主队</label><input class="js-home" type="text" value="${escapeHtml(match.home)}"></div>
-        <div><label>客队</label><input class="js-away" type="text" value="${escapeHtml(match.away)}"></div>
+        <div><label>主队</label><input class="js-home" type="text" tabindex="${tabBase}" value="${escapeHtml(match.home)}"></div>
+        <div><label>客队</label><input class="js-away" type="text" tabindex="${tabBase + 1}" value="${escapeHtml(match.away)}"></div>
       </div>
       <div class="odds-row">
-        ${OUTCOMES.map(o => `
-          <div><label>${o.label}赔率</label><input class="js-odds" data-key="${o.key}" type="number" inputmode="decimal" min="1.01" step="0.01" value="${match.odds[o.key]}"></div>
+        ${OUTCOMES.map((o, outcomeIndex) => `
+          <div><label>${o.label}赔率</label><input class="js-odds" data-key="${o.key}" type="number" inputmode="decimal" min="1.01" step="0.01" tabindex="${tabBase + 2 + outcomeIndex}" value="${match.odds[o.key]}"></div>
         `).join("")}
       </div>
       <label>胜 / 平 / 负选择</label>
       <div class="checks">
         ${OUTCOMES.map(o => `
-          <label class="check"><input class="js-selected" data-key="${o.key}" type="checkbox" ${match.selected.indexOf(o.key) !== -1 ? "checked" : ""}>${o.label}</label>
+          <label class="check"><input class="js-selected" data-key="${o.key}" type="checkbox" tabindex="-1" ${match.selected.indexOf(o.key) !== -1 ? "checked" : ""}>${o.label}</label>
         `).join("")}
       </div>
       ${selectedCount === 2 ? `
         <div class="confidence">
           <div>
             <label>更看好结果</label>
-            <select class="js-favored">
+            <select class="js-favored" tabindex="-1">
               ${getSelectedOutcomes(match).map(o => `<option value="${o.key}" ${match.favoredOutcome === o.key ? "selected" : ""}>${resultText(match, o.key)}</option>`).join("")}
             </select>
           </div>
           <div>
             <label class="js-confidence-label">信心程度：${match.confidence}%</label>
             <div class="confidence-control">
-              <input class="js-confidence" type="range" min="50" max="100" step="1" value="${match.confidence}">
-              <input class="js-confidence-number confidence-number" type="number" inputmode="numeric" min="50" max="100" step="1" value="${match.confidence}" aria-label="信心程度百分比">
+              <input class="js-confidence" type="range" min="50" max="100" step="1" tabindex="-1" value="${match.confidence}">
+              <span class="percent-field"><input class="js-confidence-number confidence-number" type="number" inputmode="numeric" min="50" max="100" step="1" tabindex="-1" value="${match.confidence}" aria-label="信心程度百分比"></span>
             </div>
             <div class="small">50% = 同等看好，100% = 完全看好当前更看好结果。</div>
           </div>
@@ -296,6 +306,7 @@ function renderMatches() {
 }
 
 function readStateFromPage() {
+  const subjectiveWeightInput = Math.min(90, clampPercent(document.getElementById("subjectiveWeight").value, 0));
   return {
     settings: {
       budgetMax: Number(document.getElementById("budgetMax").value),
@@ -303,8 +314,10 @@ function readStateFromPage() {
       floorRateInput: Number(document.getElementById("floorRate").value),
       tiltRatio: clampPercent(document.getElementById("tiltRatio").value, 50) / 100,
       tiltRatioInput: clampPercent(document.getElementById("tiltRatio").value, 50),
-      marketWeight: Math.max(10, clampPercent(document.getElementById("marketWeight").value, 100)) / 100,
-      marketWeightInput: Math.max(10, clampPercent(document.getElementById("marketWeight").value, 100)),
+      subjectiveWeight: subjectiveWeightInput / 100,
+      subjectiveWeightInput,
+      marketWeight: (100 - subjectiveWeightInput) / 100,
+      marketWeightInput: 100 - subjectiveWeightInput,
       sortMode: document.getElementById("sortMode").value
     },
     matches: matches.map((match, index) => ({
@@ -318,7 +331,7 @@ function readStateFromPage() {
 
 function validateState(state) {
   const settings = state.settings;
-  if (!Number.isFinite(settings.budgetMax) || settings.budgetMax < 2) throw new Error("预算上限至少需要 2 元。");100
+  if (!Number.isFinite(settings.budgetMax) || settings.budgetMax < 2) throw new Error("预算上限至少需要 2 元。");
   if (!Number.isFinite(settings.floorRate)) throw new Error("可接受最低收益率必须是数字。");
   state.matches.forEach((match, index) => {
     OUTCOMES.forEach(o => {
@@ -351,9 +364,7 @@ function getMarketOutcomeProb(match, key) {
 function getFinalOutcomeProb(match, key, settings) {
   const subjectiveProb = getSubjectiveOutcomeProb(match, key);
   const marketProb = getMarketOutcomeProb(match, key);
-  const marketWeight = settings.marketWeight;
-  const userWeight = 1 - marketWeight;
-  return userWeight * subjectiveProb + marketWeight * marketProb;
+  return settings.subjectiveWeight * subjectiveProb + settings.marketWeight * marketProb;
 }
 function getOutcomeWeight(match, key) {
   return getSubjectiveOutcomeProb(match, key);
@@ -384,6 +395,8 @@ function generateCombos(inputMatches, settings) {
             matchLabel: match.home + " vs " + match.away,
             key: outcome.key,
             text: resultText(match, outcome.key),
+            betCode: betCodeText(outcome.key),
+            humanText: humanResultText(match, outcome.key),
             odds: Number(match.odds[outcome.key]),
             subjectiveProb,
             marketProb,
@@ -418,6 +431,9 @@ function computeComboWeights(combos) {
     id: index + 1,
     outcomes: combo.outcomes,
     displayName: combo.outcomes.map(o => o.text).join(" x "),
+    betCodeName: combo.outcomes.map(o => o.betCode).join(" x "),
+    humanDisplayName: combo.outcomes.map(o => o.humanText).join(" x "),
+    friendlyDisplayName: combo.outcomes.map(o => o.betCode + "（" + o.humanText + "）").join(" x "),
     matchNames: combo.outcomes.map((o, i) => "第" + (i + 1) + "场：" + o.matchLabel).join("<br>"),
     odds: combo.odds,
     subjectiveValue: combo.subjectiveWeight,
@@ -664,6 +680,9 @@ function chooseComboWithinGroup(group, unitsById) {
   return chooseInGroupBalanceTarget(group.combos, unitsById);
 }
 function evaluatePlan(combos, units, sortMode) {
+  // 投注计算规则：每个组合至少 1 注，每注 2 元；命中返还 = 购买金额 * 串关赔率；
+  // 净收益 = 命中返还 - 所有组合总投入；收益率 = 净收益 / 所有组合总投入。
+  // floorRate 是所有组合都必须满足的最低收益率，tiltRatio 控制收益从均衡向期望分层移动。
   const totalUnits = sum(units);
   const stake = totalUnits * 2;
   let minRate = Infinity;
@@ -672,6 +691,7 @@ function evaluatePlan(combos, units, sortMode) {
   let maxReturn = -Infinity;
   let weightedAvgRate = 0;
   let plainRateSum = 0;
+  let purchaseWeightedAvgRate = 0;
   let maxConfidenceComboIndex = 0;
 
   const evaluatedCombos = combos.map((combo, index) => {
@@ -684,6 +704,7 @@ function evaluatePlan(combos, units, sortMode) {
     minReturn = Math.min(minReturn, returnAmount);
     maxReturn = Math.max(maxReturn, returnAmount);
     weightedAvgRate += combo.confidenceWeight * rate;
+    purchaseWeightedAvgRate += (amount / stake) * rate;
     plainRateSum += rate;
     if (isBetterConfidenceCombo(combo, combos[maxConfidenceComboIndex])) {
       maxConfidenceComboIndex = index;
@@ -694,7 +715,7 @@ function evaluatePlan(combos, units, sortMode) {
   const maxConfidenceComboRate = evaluatedCombos[maxConfidenceComboIndex].rate;
   let score = minRate;
   const plainAvgRate = plainRateSum / combos.length;
-  if (sortMode === "avgRate") score = plainAvgRate;
+  if (sortMode === "avgRate") score = purchaseWeightedAvgRate;
   if (sortMode === "maxRate") score = maxRate;
 
   return {
@@ -707,6 +728,7 @@ function evaluatePlan(combos, units, sortMode) {
     minRate,
     maxRate,
     weightedAvgRate,
+    purchaseWeightedAvgRate,
     plainAvgRate,
     maxConfidenceComboIndex,
     maxConfidenceComboRate,
@@ -716,12 +738,13 @@ function evaluatePlan(combos, units, sortMode) {
     score
   };
 }
-function isBetterRecommendedPlan(candidate, current) {
+function isBetterRecommendedPlan(candidate, current, settings) {
   if (!current) return true;
+  const eps = 1e-12;
+  const targetSlack = 0.005;
 
   const cLow = candidate.lowGroupTargetError || 0;
   const rLow = current.lowGroupTargetError || 0;
-  const targetSlack = 0.01;
   if (cLow < rLow - targetSlack) return true;
   if (cLow > rLow + targetSlack) return false;
 
@@ -730,51 +753,33 @@ function isBetterRecommendedPlan(candidate, current) {
   if (cTarget < rTarget - targetSlack) return true;
   if (cTarget > rTarget + targetSlack) return false;
 
-  if (candidate.score > current.score + 1e-12) return true;
-  if (candidate.score < current.score - 1e-12) return false;
+  if (candidate.maxGroupRateSpread < current.maxGroupRateSpread - eps) return true;
+  if (candidate.maxGroupRateSpread > current.maxGroupRateSpread + eps) return false;
 
-  if (candidate.maxGroupRateSpread < current.maxGroupRateSpread - 1e-12) return true;
-  if (candidate.maxGroupRateSpread > current.maxGroupRateSpread + 1e-12) return false;
+  if (candidate.score > current.score + eps) return true;
+  if (candidate.score < current.score - eps) return false;
+
+  const budgetUnits = Math.floor(settings.budgetMax / 2);
+  const cBudgetGap = Math.abs(candidate.totalUnits - budgetUnits);
+  const rBudgetGap = Math.abs(current.totalUnits - budgetUnits);
+  if (cBudgetGap < rBudgetGap) return true;
+  if (cBudgetGap > rBudgetGap) return false;
 
   return candidate.stake > current.stake;
 }
-function selectBestPlan(candidates, sortMode) {
+function selectBestPlan(candidates, sortMode, settings) {
   if (!candidates.length) return null;
-  let best = candidates[0];
+  let recommended = null;
+  let best = null;
   candidates.forEach(plan => {
-    if (plan.score > best.score + 1e-12 ||
-        (Math.abs(plan.score - best.score) < 1e-12 && (plan.groupTargetError || 0) < (best.groupTargetError || 0) - 1e-12) ||
-        (Math.abs(plan.score - best.score) < 1e-12 &&
-         Math.abs((plan.groupTargetError || 0) - (best.groupTargetError || 0)) < 1e-12 &&
-         plan.stake < best.stake)) {
+    if (!best || plan.score > best.score + 1e-12) {
       best = plan;
     }
-  });
-  const tiltRatio = best.settings ? best.settings.tiltRatio : 0.5;
-  const targetSlack = 0.03 + (1 - tiltRatio) * 0.04;
-  const bestLowTargetError = Math.min(...candidates.map(plan => plan.lowGroupTargetError || 0));
-  const bestGroupTargetError = Math.min(...candidates.map(plan => plan.groupTargetError || 0));
-  let admissible = candidates.filter(plan =>
-    (plan.lowGroupTargetError || 0) <= bestLowTargetError + targetSlack &&
-    (plan.groupTargetError || 0) <= bestGroupTargetError + targetSlack * Math.max(1, (plan.expectedGroups || []).length)
-  );
-  if (!admissible.length) admissible = candidates;
-  let recommended = null;
-  admissible.forEach(plan => {
-    if (!recommended ||
-        plan.score > recommended.score + 1e-12 ||
-        (Math.abs(plan.score - recommended.score) < 1e-12 && plan.stake > recommended.stake) ||
-        (Math.abs(plan.score - recommended.score) < 1e-12 &&
-         plan.stake === recommended.stake &&
-         plan.maxGroupRateSpread < recommended.maxGroupRateSpread - 1e-12) ||
-        (Math.abs(plan.score - recommended.score) < 1e-12 &&
-         plan.stake === recommended.stake &&
-         Math.abs(plan.maxGroupRateSpread - recommended.maxGroupRateSpread) < 1e-12 &&
-         (plan.groupTargetError || 0) < (recommended.groupTargetError || 0) - 1e-12)) {
+    if (isBetterRecommendedPlan(plan, recommended, settings)) {
       recommended = plan;
     }
   });
-  return { recommended, best, gap: best.score - recommended.score };
+  return { recommended, best, gap: best && recommended ? best.score - recommended.score : 0 };
 }
 function buildCandidateUnitList(minUnits, maxUnits) {
   const set = new Set();
@@ -823,12 +828,18 @@ function refineCandidateUnitList(bestUnits, minUnits, maxUnits, radius) {
 }
 function keepTopCandidates(candidates, limit) {
   candidates.sort((a, b) => {
-    if (Math.abs(b.score - a.score) > 1e-12) return b.score - a.score;
-    if (b.stake !== a.stake) return b.stake - a.stake;
+    if (Math.abs((a.lowGroupTargetError || 0) - (b.lowGroupTargetError || 0)) > 1e-12) {
+      return (a.lowGroupTargetError || 0) - (b.lowGroupTargetError || 0);
+    }
+    if (Math.abs((a.groupTargetError || 0) - (b.groupTargetError || 0)) > 1e-12) {
+      return (a.groupTargetError || 0) - (b.groupTargetError || 0);
+    }
     if (Math.abs(a.maxGroupRateSpread - b.maxGroupRateSpread) > 1e-12) {
       return a.maxGroupRateSpread - b.maxGroupRateSpread;
     }
-    return (a.groupTargetError || 0) - (b.groupTargetError || 0);
+    if (Math.abs(b.score - a.score) > 1e-12) return b.score - a.score;
+    const budgetUnits = a.settings ? Math.floor(a.settings.budgetMax / 2) : 0;
+    return Math.abs(a.totalUnits - budgetUnits) - Math.abs(b.totalUnits - budgetUnits);
   });
   if (candidates.length > limit) candidates.length = limit;
 }
@@ -1011,7 +1022,7 @@ function optimizeWithRateFloor(combos, settings) {
     }
   }
 
-  const selected = selectBestPlan(candidates, settings.sortMode);
+  const selected = selectBestPlan(candidates, settings.sortMode, settings);
   const searchMode = (maxUnits - minUnits <= 2500) ? "全量搜索" : "快速搜索";
   return {
     feasible: Boolean(selected),
@@ -1059,14 +1070,15 @@ function renderSummary(result, state) {
   const items = [
     ["推荐投入", rec ? fmtMoney(rec.stake) : "-"],
     ["总注数", rec ? rec.totalUnits + " 注" : "-"],
-    //["组合数", result.searchInfo ? result.searchInfo.comboCount + " 个" : "-"],
-    //["搜索模式", result.searchInfo ? result.searchInfo.mode : "-"],
-    //["可接受最低收益率", fmtRate(state.settings.floorRate), state.settings.floorRate >= 0 ? "positive" : "negative"],
+    ["理论均衡收益率", fmtRate(result.theoreticalMaxMinRate), result.theoreticalMaxMinRate >= 0 ? "positive" : "negative"],
+    ["预算内整数可实现均衡收益率", fmtRate(result.integerMaxMinRate), result.integerMaxMinRate >= 0 ? "positive" : "negative"],
+    ["可接受最低收益率", fmtRate(state.settings.floorRate), state.settings.floorRate >= 0 ? "positive" : "negative"],
     ["推荐方案最低收益率", rec ? fmtRate(rec.minRate) : "-", rec && rec.minRate >= 0 ? "positive" : rec ? "negative" : ""],
-    ["推荐方案平均收益率", rec ? fmtRate(rec.plainAvgRate) : "-", rec && rec.plainAvgRate >= 0 ? "positive" : rec ? "negative" : ""],
+    ["投注加权平均收益率", rec ? fmtRate(rec.purchaseWeightedAvgRate) : "-", rec && rec.purchaseWeightedAvgRate >= 0 ? "positive" : rec ? "negative" : ""],
     ["推荐方案最高收益率", rec ? fmtRate(rec.maxRate) : "-", rec && rec.maxRate >= 0 ? "positive" : rec ? "negative" : ""],
-    //["收益倾斜比例", state.settings.tiltRatioInput.toFixed(0) + "%"],
-    //["赔率参考比例", state.settings.marketWeightInput.toFixed(0) + "%"]
+    ["收益倾斜比例", state.settings.tiltRatioInput.toFixed(0) + "%"],
+    ["主观信心权重", state.settings.subjectiveWeightInput.toFixed(0) + "%"],
+    ["赔率参考权重", state.settings.marketWeightInput.toFixed(0) + "%"]
   ];
   el.summary.innerHTML = items.map(item => `
     <div class="stat"><div class="name">${item[0]}</div><div class="value ${item[2] || ""}">${item[1]}</div></div>
@@ -1076,19 +1088,30 @@ function renderBetTable(result) {
   el.tbody.innerHTML = "";
   if (!result.recommended) return;
   sortCombosForDisplay(result.recommended.combos).forEach((combo, index) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>第 ${index + 1} 组</td>
-      <td>${escapeHtml(combo.displayName)}</td>
-      <td>${combo.expectedValue.toFixed(4)}</td>
-      <td>${fmtOdds(combo.odds)}</td>
-      <td>${combo.units} 注</td>
-      <td>${fmtMoney(combo.amount)}</td>
-      <td>${fmtMoney(combo.returnAmount)}</td>
-      <td class="${combo.profit >= 0 ? "positive" : "negative"}">${fmtMoney(combo.profit)}</td>
-      <td class="${combo.rate >= 0 ? "positive" : "negative"}">${fmtRate(combo.rate)}</td>
-    `;
-    el.tbody.appendChild(tr);
+    const rowSpan = combo.outcomes.length;
+    combo.outcomes.forEach((outcome, legIndex) => {
+      const tr = document.createElement("tr");
+      const sharedCells = legIndex === 0 ? `
+        <td rowspan="${rowSpan}">第 ${index + 1} 组</td>
+      ` : "";
+      const metricCells = legIndex === 0 ? `
+        <td rowspan="${rowSpan}">${combo.expectedValue.toFixed(4)}</td>
+        <td rowspan="${rowSpan}">${fmtOdds(combo.odds)}</td>
+        <td rowspan="${rowSpan}">${combo.units} 注</td>
+        <td rowspan="${rowSpan}">${fmtMoney(combo.amount)}</td>
+        <td rowspan="${rowSpan}">${fmtMoney(combo.returnAmount)}</td>
+        <td rowspan="${rowSpan}" class="${combo.profit >= 0 ? "positive" : "negative"}">${fmtMoney(combo.profit)}</td>
+        <td rowspan="${rowSpan}" class="${combo.rate >= 0 ? "positive" : "negative"}">${fmtRate(combo.rate)}</td>
+      ` : "";
+      tr.innerHTML = `
+        ${sharedCells}
+        <td>第 ${legIndex + 1} 场：${escapeHtml(outcome.matchLabel)}</td>
+        <td>${escapeHtml(outcome.betCode)}</td>
+        <td>${escapeHtml(outcome.humanText)}</td>
+        ${metricCells}
+      `;
+      el.tbody.appendChild(tr);
+    });
   });
 }
 function buildCopyText(result, state) {
@@ -1100,14 +1123,19 @@ function buildCopyText(result, state) {
     return "第" + (index + 1) + " 场：" + match.home + " vs " + match.away + "；选择：" + selected + extra;
   }).join("\n");
   const simpleRows = result.recommended ? sortCombosForDisplay(result.recommended.combos).map((combo, index) =>
-    "第" + (index + 1) + "组：" + combo.displayName +
+    "第" + (index + 1) + "组" +
     "；最终期望 " + combo.expectedValue.toFixed(4) +
     "；赔率 " + fmtOdds(combo.odds) +
     "；买 " + combo.units + " 注" +
     "；购买金额 " + fmtMoney(combo.amount) +
     "；命中返还 " + fmtMoney(combo.returnAmount) +
     "；净收益 " + fmtMoney(combo.profit) +
-    "；收益率 " + fmtRate(combo.rate)
+    "；收益率 " + fmtRate(combo.rate) +
+    "\n" + combo.outcomes.map((outcome, legIndex) =>
+      "  第" + (legIndex + 1) + "场：" + outcome.matchLabel +
+      "；投注 " + outcome.betCode +
+      "；解释 " + outcome.humanText
+    ).join("\n")
   ).join("\n") : "当前条件下无可行推荐方案。";
 
   return `足球串关计算器 v2
@@ -1115,12 +1143,19 @@ function buildCopyText(result, state) {
 推荐投入：${result.recommended ? fmtMoney(result.recommended.stake) : "-"}
 总注数：${result.recommended ? result.recommended.totalUnits + " 注" : "-"}
 可接受最低收益率：${fmtRate(state.settings.floorRate)}
+理论均衡收益率：${fmtRate(result.theoreticalMaxMinRate)}
+预算内整数可实现均衡收益率：${fmtRate(result.integerMaxMinRate)}
 收益倾斜比例：${state.settings.tiltRatioInput.toFixed(0)}%
-赔率参考比例：${state.settings.marketWeightInput.toFixed(0)}%
+主观信心权重：${state.settings.subjectiveWeightInput.toFixed(0)}%
+赔率参考权重：${state.settings.marketWeightInput.toFixed(0)}%
 筛选方式：${sortModeName(state.settings.sortMode)}
 推荐方案最低收益率：${result.recommended ? fmtRate(result.recommended.minRate) : "-"}
-推荐方案平均收益率：${result.recommended ? fmtRate(result.recommended.plainAvgRate) : "-"}
+投注加权平均收益率：${result.recommended ? fmtRate(result.recommended.purchaseWeightedAvgRate) : "-"}
 推荐方案最高收益率：${result.recommended ? fmtRate(result.recommended.maxRate) : "-"}
+搜索模式：${result.searchInfo ? result.searchInfo.mode : "-"}
+候选注数：${result.searchInfo ? result.searchInfo.unitCandidateCount + " 个" : "-"}
+最终推荐总注数：${result.recommended ? result.recommended.totalUnits + " 注" : "-"}
+预算上限总注数：${Math.floor(state.settings.budgetMax / 2)} 注
 
 比赛选择：
 ${simpleMatchText}
@@ -1373,7 +1408,7 @@ document.getElementById("copyBtn").addEventListener("click", copyList);
 document.getElementById("budgetMax").addEventListener("input", markDirty);
 document.getElementById("floorRate").addEventListener("input", markDirty);
 document.getElementById("tiltRatio").addEventListener("input", markDirty);
-document.getElementById("marketWeight").addEventListener("input", markDirty);
+document.getElementById("subjectiveWeight").addEventListener("input", markDirty);
 document.getElementById("sortMode").addEventListener("change", markDirty);
 el.matches.addEventListener("input", handleMatchInput);
 el.matches.addEventListener("change", handleMatchChange);
