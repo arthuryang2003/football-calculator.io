@@ -14,7 +14,7 @@
     .sub,.small,.hint{color:var(--muted);font-size:13px}
     .home-link{flex:0 0 auto;color:var(--accent2);font-size:14px;text-decoration:none;padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:#fff}
     .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:15px;margin-bottom:14px}
-    .settings{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;align-items:start}
+    .settings{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:start}
     label{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
     input,select,textarea{width:100%;min-height:44px;border:1px solid var(--border);border-radius:10px;padding:10px;background:#fff;color:var(--text);font-size:16px;outline:none}
     input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(23,107,91,.13)}
@@ -38,7 +38,7 @@
     .error,.notice{display:none;margin-top:10px;padding:10px 12px;border-radius:10px;font-size:14px}
     .error{color:var(--danger);background:#fff1f0;border:1px solid #ffccc7}.notice{color:var(--warn);background:#fffaeb;border:1px solid #fedf89}
     .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:12px}
-    table{width:100%;min-width:1280px;border-collapse:collapse;background:#fff}
+    table{width:100%;min-width:860px;border-collapse:collapse;background:#fff}
     th,td{padding:10px;border-bottom:1px solid var(--border);text-align:right;font-size:14px;vertical-align:top}
     th:first-child,td:first-child,th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:left}
     th{background:#f8fafc;color:var(--muted);font-weight:700}tr:last-child td{border-bottom:0}
@@ -96,11 +96,6 @@
           <option value="maxRate">最高收益率最高</option>
         </select>
       </div>
-      <div>
-        <label for="tolerance">接近最优容忍度</label>
-        <input id="tolerance" type="number" inputmode="decimal" min="0" step="0.05" value="0">
-        <div class="small">单位：百分点。得分接近时优先推荐投入更小的方案。</div>
-      </div>
     </div>
     <p class="hint">程序先筛选出所有命中结果收益率都不低于可接受最低收益率的整数方案，再按目标收益率分层逼近，让高信心组合收益更高但不无限放大。最终期望值由用户信心和赔率倒数隐含概率融合得到。赔率参考比例越高，排序越接近市场赔率；赔率参考比例越低，排序越接近你的主观信心。</p>
     <p class="hint">可倾斜空间 = 预算内整数可实现均衡收益率 - 可接受最低收益率。空间不足时会自然退化为接近底线约束的方案。</p>
@@ -124,8 +119,7 @@
       <table>
         <thead>
           <tr>
-            <th>期望排序</th><th>注单编号</th><th>比赛组合</th><th>结果组合</th><th>串关赔率</th>
-            <th>主观期望</th><th>市场期望</th><th>最终期望</th><th>目标收益率</th><th>买几注</th><th>购买金额</th><th>命中返还</th><th>净收益</th><th>收益率</th>
+            <th>编号</th><th>结果组合</th><th>最终期望</th><th>串关赔率</th><th>买几注</th><th>购买金额</th><th>命中返还</th><th>净收益</th><th>收益率</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -237,9 +231,18 @@ function updateDefaultFavoredForMatch(match, force) {
 function updateDefaultFavoredOutcome(matchIndex) {
   updateDefaultFavoredForMatch(matches[matchIndex], false);
 }
+function getDrawSubject(match) {
+  const winOdds = Number(match.odds.win);
+  const loseOdds = Number(match.odds.lose);
+  if (Number.isFinite(winOdds) && Number.isFinite(loseOdds)) {
+    if (loseOdds < winOdds) return match.away;
+    return match.home;
+  }
+  return match.home;
+}
 function resultText(match, key) {
   if (key === "win") return match.home + "胜";
-  if (key === "draw") return "平";
+  if (key === "draw") return getDrawSubject(match) + "平";
   return match.away + "胜";
 }
 
@@ -303,7 +306,6 @@ function readStateFromPage() {
       tiltRatioInput: clampPercent(document.getElementById("tiltRatio").value, 50),
       marketWeight: Math.max(10, clampPercent(document.getElementById("marketWeight").value, 100)) / 100,
       marketWeightInput: Math.max(10, clampPercent(document.getElementById("marketWeight").value, 100)),
-      tolerance: Number(document.getElementById("tolerance").value),
       sortMode: document.getElementById("sortMode").value
     },
     matches: matches.map((match, index) => ({
@@ -317,9 +319,8 @@ function readStateFromPage() {
 
 function validateState(state) {
   const settings = state.settings;
-  if (!Number.isFinite(settings.budgetMax) || settings.budgetMax < 2) throw new Error("预算上限至少需要 2 元。");
+  if (!Number.isFinite(settings.budgetMax) || settings.budgetMax < 2) throw new Error("预算上限至少需要 2 元。");100
   if (!Number.isFinite(settings.floorRate)) throw new Error("可接受最低收益率必须是数字。");
-  if (!Number.isFinite(settings.tolerance) || settings.tolerance < 0) throw new Error("接近最优容忍度必须大于等于 0。");
   state.matches.forEach((match, index) => {
     OUTCOMES.forEach(o => {
       const odds = Number(match.odds[o.key]);
@@ -527,12 +528,13 @@ function buildExpectedGroups(combos, settings, metrics) {
   const maxValue = Math.max(...values);
   const minValue = Math.min(...values);
   const effectiveTiltRatio = getEffectiveTiltRatio(settings);
+  const balancedRate = Number.isFinite(metrics.integerMaxMinRate) ? metrics.integerMaxMinRate : settings.floorRate;
   return groups.map((group, index) => {
-    let normalized = 0;
+    let normalized = 1;
     if (Math.abs(maxValue - minValue) > 1e-12) {
       normalized = (group.expectedValue - minValue) / (maxValue - minValue);
     }
-    const targetRate = settings.floorRate + effectiveTiltRatio * metrics.tiltSpace * normalized;
+    const targetRate = balancedRate - effectiveTiltRatio * (balancedRate - settings.floorRate) * (1 - normalized);
     return { ...group, rank: index + 1, normalizedExpectedScore: normalized, targetRate };
   });
 }
@@ -629,11 +631,11 @@ function computeGroupTargetError(expectedGroups, plan) {
     return total + Math.abs(group.targetRate - stats.avgRate);
   }, 0);
 }
-function computeFloorAnchorError(expectedGroups, plan, settings) {
-  if (!expectedGroups || !expectedGroups.length) return 0;
+function computeLowGroupTargetError(expectedGroups, plan) {
+  if (!expectedGroups || !expectedGroups.length || !plan) return 0;
   const lowestGroup = expectedGroups[expectedGroups.length - 1];
   const stats = getGroupActualStats(lowestGroup, plan);
-  return Math.max(0, stats.avgRate - settings.floorRate);
+  return Math.abs(stats.avgRate - lowestGroup.targetRate);
 }
 function chooseGroupForRemainingUnit(groups, unitsById, totalUnits, settings) {
   let target = groups[0];
@@ -715,19 +717,30 @@ function evaluatePlan(combos, units, sortMode) {
     score
   };
 }
-function selectBestPlan(candidates, sortMode, tolerance) {
+function isBetterRecommendedPlan(candidate, current) {
+  if (!current) return true;
+
+  const cLow = candidate.lowGroupTargetError || 0;
+  const rLow = current.lowGroupTargetError || 0;
+  const targetSlack = 0.01;
+  if (cLow < rLow - targetSlack) return true;
+  if (cLow > rLow + targetSlack) return false;
+
+  const cTarget = candidate.groupTargetError || 0;
+  const rTarget = current.groupTargetError || 0;
+  if (cTarget < rTarget - targetSlack) return true;
+  if (cTarget > rTarget + targetSlack) return false;
+
+  if (candidate.score > current.score + 1e-12) return true;
+  if (candidate.score < current.score - 1e-12) return false;
+
+  if (candidate.maxGroupRateSpread < current.maxGroupRateSpread - 1e-12) return true;
+  if (candidate.maxGroupRateSpread > current.maxGroupRateSpread + 1e-12) return false;
+
+  return candidate.stake > current.stake;
+}
+function selectBestPlan(candidates, sortMode) {
   if (!candidates.length) return null;
-  function isBetterRecommended(plan, current) {
-    if (!current) return true;
-    const floorDelta = (plan.floorAnchorError || 0) - (current.floorAnchorError || 0);
-    if (Math.abs(floorDelta) > 1e-12) return floorDelta < 0;
-    const targetDelta = (plan.groupTargetError || 0) - (current.groupTargetError || 0);
-    if (Math.abs(targetDelta) > 1e-12) return targetDelta < 0;
-    const spreadDelta = plan.maxGroupRateSpread - current.maxGroupRateSpread;
-    if (Math.abs(spreadDelta) > 1e-12) return spreadDelta < 0;
-    if (plan.stake !== current.stake) return plan.stake < current.stake;
-    return plan.score > current.score;
-  }
   let best = candidates[0];
   candidates.forEach(plan => {
     if (plan.score > best.score + 1e-12 ||
@@ -738,20 +751,38 @@ function selectBestPlan(candidates, sortMode, tolerance) {
       best = plan;
     }
   });
-  const toleranceRate = tolerance / 100;
-  const threshold = best.score - toleranceRate;
+  const tiltRatio = best.settings ? best.settings.tiltRatio : 0.5;
+  const targetSlack = 0.03 + (1 - tiltRatio) * 0.04;
+  const bestLowTargetError = Math.min(...candidates.map(plan => plan.lowGroupTargetError || 0));
+  const bestGroupTargetError = Math.min(...candidates.map(plan => plan.groupTargetError || 0));
+  let admissible = candidates.filter(plan =>
+    (plan.lowGroupTargetError || 0) <= bestLowTargetError + targetSlack &&
+    (plan.groupTargetError || 0) <= bestGroupTargetError + targetSlack * Math.max(1, (plan.expectedGroups || []).length)
+  );
+  if (!admissible.length) admissible = candidates;
   let recommended = null;
-  candidates.forEach(plan => {
-    if (plan.score >= threshold) {
-      if (isBetterRecommended(plan, recommended)) {
-        recommended = plan;
-      }
+  admissible.forEach(plan => {
+    if (!recommended ||
+        plan.score > recommended.score + 1e-12 ||
+        (Math.abs(plan.score - recommended.score) < 1e-12 && plan.stake > recommended.stake) ||
+        (Math.abs(plan.score - recommended.score) < 1e-12 &&
+         plan.stake === recommended.stake &&
+         plan.maxGroupRateSpread < recommended.maxGroupRateSpread - 1e-12) ||
+        (Math.abs(plan.score - recommended.score) < 1e-12 &&
+         plan.stake === recommended.stake &&
+         Math.abs(plan.maxGroupRateSpread - recommended.maxGroupRateSpread) < 1e-12 &&
+         (plan.groupTargetError || 0) < (recommended.groupTargetError || 0) - 1e-12)) {
+      recommended = plan;
     }
   });
   return { recommended, best, gap: best.score - recommended.score };
 }
 function buildCandidateUnitList(minUnits, maxUnits) {
   const set = new Set();
+  if (maxUnits - minUnits <= 2500) {
+    for (let u = minUnits; u <= maxUnits; u += 1) set.add(u);
+    return Array.from(set).sort((a, b) => a - b);
+  }
   for (let u = minUnits; u <= Math.min(maxUnits, minUnits + 20); u += 1) set.add(u);
   for (let u = Math.max(minUnits, maxUnits - 20); u <= maxUnits; u += 1) set.add(u);
   const span = maxUnits - minUnits;
@@ -767,6 +798,23 @@ function buildCandidateUnitList(minUnits, maxUnits) {
   }
   return Array.from(set).sort((a, b) => a - b);
 }
+function addTargetedUnitCandidates(set, combos, settings, metrics, minUnits, maxUnits) {
+  const groups = buildExpectedGroups(combos, settings, metrics);
+  groups.forEach(group => {
+    const denominator = 1 + group.targetRate;
+    if (denominator <= 0) return;
+    group.combos.forEach(combo => {
+      const maxK = Math.min(6, Math.floor(maxUnits * denominator / combo.odds));
+      for (let k = 1; k <= maxK; k += 1) {
+        const center = Math.round((k * combo.odds) / denominator);
+        for (let delta = -2; delta <= 2; delta += 1) {
+          const u = center + delta;
+          if (u >= minUnits && u <= maxUnits) set.add(u);
+        }
+      }
+    });
+  });
+}
 function refineCandidateUnitList(bestUnits, minUnits, maxUnits, radius) {
   const list = [];
   const start = Math.max(minUnits, bestUnits - radius);
@@ -777,16 +825,11 @@ function refineCandidateUnitList(bestUnits, minUnits, maxUnits, radius) {
 function keepTopCandidates(candidates, limit) {
   candidates.sort((a, b) => {
     if (Math.abs(b.score - a.score) > 1e-12) return b.score - a.score;
-    if (Math.abs((a.floorAnchorError || 0) - (b.floorAnchorError || 0)) > 1e-12) {
-      return (a.floorAnchorError || 0) - (b.floorAnchorError || 0);
-    }
-    if (Math.abs((a.groupTargetError || 0) - (b.groupTargetError || 0)) > 1e-12) {
-      return (a.groupTargetError || 0) - (b.groupTargetError || 0);
-    }
+    if (b.stake !== a.stake) return b.stake - a.stake;
     if (Math.abs(a.maxGroupRateSpread - b.maxGroupRateSpread) > 1e-12) {
       return a.maxGroupRateSpread - b.maxGroupRateSpread;
     }
-    return a.stake - b.stake;
+    return (a.groupTargetError || 0) - (b.groupTargetError || 0);
   });
   if (candidates.length > limit) candidates.length = limit;
 }
@@ -866,6 +909,7 @@ function generateGroupedHedgePlan(combos, totalUnits, settings, metrics) {
   const plan = evaluatePlan(targetCombos, finalUnits, settings.sortMode);
   if (plan.combos.some(combo => combo.rate + 1e-12 < L)) return null;
   if (!plan.satisfiesExpectedOrder) return null;
+  plan.settings = settings;
   plan.expectedGroups = targetGroups.map(group => ({
     ...group,
     spread: computeGroupSpread(group, unitsById)
@@ -876,11 +920,7 @@ function generateGroupedHedgePlan(combos, totalUnits, settings, metrics) {
     return Math.max(...rates) - Math.min(...rates);
   }));
   plan.groupTargetError = computeGroupTargetError(plan.expectedGroups, plan);
-  plan.floorAnchorError = computeFloorAnchorError(plan.expectedGroups, plan, settings);
-  if (settings.sortMode === "maxRate") {
-    const topGroup = plan.expectedGroups[0];
-    plan.score = Math.min(...topGroup.combos.map(gc => plan.combos.find(c => c.id === gc.id).rate));
-  }
+  plan.lowGroupTargetError = computeLowGroupTargetError(plan.expectedGroups, plan);
   plan.groupBalanced = plan.expectedGroups.every(group => {
     if (group.combos.length <= 1) return true;
     return group.spread.spread <= Math.max(4, group.spread.max * 0.35);
@@ -946,7 +986,9 @@ function optimizeWithRateFloor(combos, settings) {
   const tiltSpace = Math.max(0, integerInfo.bestMinRate - settings.floorRate);
   const metrics = { theoreticalMaxMinRate, integerMaxMinRate: integerInfo.bestMinRate, tiltSpace };
   const candidates = [];
-  const unitCandidates = buildCandidateUnitList(minUnits, maxUnits);
+  const unitCandidateSet = new Set(buildCandidateUnitList(minUnits, maxUnits));
+  addTargetedUnitCandidates(unitCandidateSet, combos, settings, metrics, minUnits, maxUnits);
+  const unitCandidates = Array.from(unitCandidateSet).sort((a, b) => a - b);
   const searchedUnits = new Set();
   let bestDuringSearch = null;
 
@@ -957,7 +999,7 @@ function optimizeWithRateFloor(combos, settings) {
       const plan = generateTargetBasedPlan(combos, U, settings, metrics);
       if (!plan) return;
       candidates.push(plan);
-      keepTopCandidates(candidates, 100);
+      keepTopCandidates(candidates, 500);
       if (!bestDuringSearch || plan.score > bestDuringSearch.score + 1e-12 ||
           (Math.abs(plan.score - bestDuringSearch.score) < 1e-12 && (plan.groupTargetError || 0) < (bestDuringSearch.groupTargetError || 0) - 1e-12)) {
         bestDuringSearch = plan;
@@ -966,12 +1008,12 @@ function optimizeWithRateFloor(combos, settings) {
     unitCandidates.forEach(tryUnit);
     if (bestDuringSearch) {
       refineCandidateUnitList(bestDuringSearch.totalUnits, minUnits, maxUnits, 15).forEach(tryUnit);
-      keepTopCandidates(candidates, 100);
+      keepTopCandidates(candidates, 500);
     }
   }
 
-  const selected = selectBestPlan(candidates, settings.sortMode, settings.tolerance);
-  const searchMode = (maxUnits - minUnits <= 80) ? "全量搜索" : "快速搜索";
+  const selected = selectBestPlan(candidates, settings.sortMode);
+  const searchMode = (maxUnits - minUnits <= 2500) ? "全量搜索" : "快速搜索";
   return {
     feasible: Boolean(selected),
     theoreticalMaxMinRate,
@@ -1018,26 +1060,14 @@ function renderSummary(result, state) {
   const items = [
     ["推荐投入", rec ? fmtMoney(rec.stake) : "-"],
     ["总注数", rec ? rec.totalUnits + " 注" : "-"],
-    ["组合数", result.searchInfo ? result.searchInfo.comboCount + " 个" : "-"],
-    ["搜索模式", result.searchInfo ? result.searchInfo.mode : "-"],
-    ["候选注数", result.searchInfo ? result.searchInfo.unitCandidateCount + " 个" : "-"],
-    ["筛选方式", sortModeName(state.settings.sortMode)],
-    ["可接受最低收益率", fmtRate(state.settings.floorRate), state.settings.floorRate >= 0 ? "positive" : "negative"],
-    ["理论均衡收益率", fmtRate(result.theoreticalMaxMinRate), result.theoreticalMaxMinRate >= 0 ? "positive" : "negative"],
-    ["预算内整数可实现均衡收益率", fmtRate(result.integerMaxMinRate), result.integerMaxMinRate >= 0 ? "positive" : "negative"],
-    ["可倾斜空间", fmtRate(result.tiltSpace), result.tiltSpace > 0 ? "positive" : ""],
-    ["收益倾斜比例", state.settings.tiltRatioInput.toFixed(0) + "%"],
-    ["赔率参考比例", state.settings.marketWeightInput.toFixed(0) + "%"],
+    //["组合数", result.searchInfo ? result.searchInfo.comboCount + " 个" : "-"],
+    //["搜索模式", result.searchInfo ? result.searchInfo.mode : "-"],
+    //["可接受最低收益率", fmtRate(state.settings.floorRate), state.settings.floorRate >= 0 ? "positive" : "negative"],
     ["推荐方案最低收益率", rec ? fmtRate(rec.minRate) : "-", rec && rec.minRate >= 0 ? "positive" : rec ? "negative" : ""],
     ["推荐方案平均收益率", rec ? fmtRate(rec.plainAvgRate) : "-", rec && rec.plainAvgRate >= 0 ? "positive" : rec ? "negative" : ""],
     ["推荐方案最高收益率", rec ? fmtRate(rec.maxRate) : "-", rec && rec.maxRate >= 0 ? "positive" : rec ? "negative" : ""],
-    ["是否满足期望排序", rec ? (rec.satisfiesExpectedOrder ? "是" : "否") : "-"],
-    ["组内是否均衡", rec ? (rec.groupBalanced ? "是" : "否") : "-"],
-    ["组目标误差", rec ? (rec.groupTargetError * 100).toFixed(3) + " 个百分点" : "-"],
-    ["低期望组贴底线误差", rec ? (rec.floorAnchorError * 100).toFixed(3) + " 个百分点" : "-"],
-    ["最高期望组目标收益率", rec && rec.expectedGroups.length ? fmtRate(rec.expectedGroups[0].targetRate) : "-"],
-    ["最低期望组目标收益率", rec && rec.expectedGroups.length ? fmtRate(rec.expectedGroups[rec.expectedGroups.length - 1].targetRate) : "-"],
-    ["与最优 score 差距", rec ? (result.gap * 100).toFixed(3) + " 个百分点" : "-"]
+    //["收益倾斜比例", state.settings.tiltRatioInput.toFixed(0) + "%"],
+    //["赔率参考比例", state.settings.marketWeightInput.toFixed(0) + "%"]
   ];
   el.summary.innerHTML = items.map(item => `
     <div class="stat"><div class="name">${item[0]}</div><div class="value ${item[2] || ""}">${item[1]}</div></div>
@@ -1046,19 +1076,13 @@ function renderSummary(result, state) {
 function renderBetTable(result) {
   el.tbody.innerHTML = "";
   if (!result.recommended) return;
-  const rankMap = getExpectedRankMap(result.recommended.combos);
   sortCombosForDisplay(result.recommended.combos).forEach(combo => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${rankMap.get(combo.id)}</td>
-      <td>第 ${combo.id} 注</td>
-      <td>${combo.matchNames}</td>
+      <td>第 ${combo.id} 组</td>
       <td>${escapeHtml(combo.displayName)}</td>
-      <td>${fmtOdds(combo.odds)}</td>
-      <td>${combo.subjectiveValue.toFixed(4)}</td>
-      <td>${combo.marketValue.toFixed(4)}</td>
       <td>${combo.expectedValue.toFixed(4)}</td>
-      <td>${fmtRate(combo.targetRate)}</td>
+      <td>${fmtOdds(combo.odds)}</td>
       <td>${combo.units} 注</td>
       <td>${fmtMoney(combo.amount)}</td>
       <td>${fmtMoney(combo.returnAmount)}</td>
@@ -1069,6 +1093,42 @@ function renderBetTable(result) {
   });
 }
 function buildCopyText(result, state) {
+  const simpleMatchText = state.matches.map((match, index) => {
+    const selected = getSelectedOutcomes(match).map(o => resultText(match, o.key)).join(" / ");
+    const extra = getSelectedOutcomes(match).length === 2
+      ? "；更看好：" + resultText(match, match.favoredOutcome) + "；信心：" + match.confidence + "%"
+      : "";
+    return "第" + (index + 1) + " 场：" + match.home + " vs " + match.away + "；选择：" + selected + extra;
+  }).join("\n");
+  const simpleRows = result.recommended ? sortCombosForDisplay(result.recommended.combos).map(combo =>
+    "第" + combo.id + "组：" + combo.displayName +
+    "；最终期望 " + combo.expectedValue.toFixed(4) +
+    "；赔率 " + fmtOdds(combo.odds) +
+    "；买 " + combo.units + " 注" +
+    "；购买金额 " + fmtMoney(combo.amount) +
+    "；命中返还 " + fmtMoney(combo.returnAmount) +
+    "；净收益 " + fmtMoney(combo.profit) +
+    "；收益率 " + fmtRate(combo.rate)
+  ).join("\n") : "当前条件下无可行推荐方案。";
+
+  return `足球串关计算器 v2
+预算上限：${fmtMoney(state.settings.budgetMax)}
+推荐投入：${result.recommended ? fmtMoney(result.recommended.stake) : "-"}
+总注数：${result.recommended ? result.recommended.totalUnits + " 注" : "-"}
+可接受最低收益率：${fmtRate(state.settings.floorRate)}
+收益倾斜比例：${state.settings.tiltRatioInput.toFixed(0)}%
+赔率参考比例：${state.settings.marketWeightInput.toFixed(0)}%
+筛选方式：${sortModeName(state.settings.sortMode)}
+推荐方案最低收益率：${result.recommended ? fmtRate(result.recommended.minRate) : "-"}
+推荐方案平均收益率：${result.recommended ? fmtRate(result.recommended.plainAvgRate) : "-"}
+推荐方案最高收益率：${result.recommended ? fmtRate(result.recommended.maxRate) : "-"}
+
+比赛选择：
+${simpleMatchText}
+
+每注购买清单：
+${simpleRows}`;
+
   const matchText = state.matches.map((match, index) => {
     const selected = getSelectedOutcomes(match).map(o => resultText(match, o.key)).join(" / ");
     const extra = getSelectedOutcomes(match).length === 2
@@ -1116,7 +1176,7 @@ function buildCopyText(result, state) {
 是否满足期望排序：${result.recommended ? (result.recommended.satisfiesExpectedOrder ? "是" : "否") : "-"}
 组内是否均衡：${result.recommended ? (result.recommended.groupBalanced ? "是" : "否") : "-"}
 组目标误差：${result.recommended ? (result.recommended.groupTargetError * 100).toFixed(3) + " 个百分点" : "-"}
-低期望组贴底线误差：${result.recommended ? (result.recommended.floorAnchorError * 100).toFixed(3) + " 个百分点" : "-"}
+低期望组目标误差：${result.recommended ? (result.recommended.lowGroupTargetError * 100).toFixed(3) + " 个百分点" : "-"}
 
 期望分组：
 ${groupText}
@@ -1175,9 +1235,6 @@ async function calculate() {
     if (combos.length > 128) {
       showNotice("当前组合数较多，已使用快速搜索模式。结果为预算内近似最优，而非全量枚举最优。");
     }
-    if (result.recommended.stake !== result.best.stake) {
-      showNotice("已按容忍度推荐更低投入方案；与最优 score 差距为 " + (result.gap * 100).toFixed(3) + " 个百分点。");
-    }
   } catch (err) {
     el.tbody.innerHTML = "";
     showError(err.message || String(err));
@@ -1209,9 +1266,6 @@ function handleMatchInput(event) {
   if (event.target.classList.contains("js-away")) match.away = event.target.value;
   if (event.target.classList.contains("js-odds")) {
     match.odds[event.target.dataset.key] = Number(event.target.value);
-    if (!match.selectionTouched) autoSelectLowestTwo(match);
-    updateDefaultFavoredOutcome(index);
-    renderMatches();
   }
   if (event.target.classList.contains("js-confidence") || event.target.classList.contains("js-confidence-number")) {
     match.confidence = clampConfidence(event.target.value);
@@ -1239,6 +1293,12 @@ function handleMatchChange(event) {
     }
     match.favoredTouched = false;
     updateDefaultFavoredForMatch(match, true);
+    renderMatches();
+    markDirty();
+  }
+  if (event.target.classList.contains("js-odds")) {
+    if (!match.selectionTouched) autoSelectLowestTwo(match);
+    updateDefaultFavoredOutcome(index);
     renderMatches();
     markDirty();
   }
@@ -1301,7 +1361,6 @@ document.getElementById("floorRate").addEventListener("input", markDirty);
 document.getElementById("tiltRatio").addEventListener("input", markDirty);
 document.getElementById("marketWeight").addEventListener("input", markDirty);
 document.getElementById("sortMode").addEventListener("change", markDirty);
-document.getElementById("tolerance").addEventListener("input", markDirty);
 el.matches.addEventListener("input", handleMatchInput);
 el.matches.addEventListener("change", handleMatchChange);
 el.matches.addEventListener("click", handleMatchClick);
