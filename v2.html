@@ -39,8 +39,7 @@
     .error{color:var(--danger);background:#fff1f0;border:1px solid #ffccc7}.notice{color:var(--warn);background:#fffaeb;border:1px solid #fedf89}
     .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:12px}
     table{width:100%;min-width:860px;border-collapse:collapse;background:#fff}
-    th,td{padding:10px;border-bottom:1px solid var(--border);text-align:right;font-size:14px;vertical-align:top}
-    th:first-child,td:first-child,th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:left}
+    th,td{padding:10px;border-bottom:1px solid var(--border);text-align:center;font-size:14px;vertical-align:middle}
     th{background:#f8fafc;color:var(--muted);font-weight:700}tr:last-child td{border-bottom:0}
     textarea{display:none;min-height:170px;margin-top:10px;font-size:14px}
     @media (max-width:980px){header{display:block}.home-link{display:inline-flex;margin-top:10px}.settings,.matches,.summary{grid-template-columns:1fr}.team-row{grid-template-columns:1fr}.card{padding:13px}}
@@ -1076,10 +1075,10 @@ function renderSummary(result, state) {
 function renderBetTable(result) {
   el.tbody.innerHTML = "";
   if (!result.recommended) return;
-  sortCombosForDisplay(result.recommended.combos).forEach(combo => {
+  sortCombosForDisplay(result.recommended.combos).forEach((combo, index) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>第 ${combo.id} 组</td>
+      <td>第 ${index + 1} 组</td>
       <td>${escapeHtml(combo.displayName)}</td>
       <td>${combo.expectedValue.toFixed(4)}</td>
       <td>${fmtOdds(combo.odds)}</td>
@@ -1100,8 +1099,8 @@ function buildCopyText(result, state) {
       : "";
     return "第" + (index + 1) + " 场：" + match.home + " vs " + match.away + "；选择：" + selected + extra;
   }).join("\n");
-  const simpleRows = result.recommended ? sortCombosForDisplay(result.recommended.combos).map(combo =>
-    "第" + combo.id + "组：" + combo.displayName +
+  const simpleRows = result.recommended ? sortCombosForDisplay(result.recommended.combos).map((combo, index) =>
+    "第" + (index + 1) + "组：" + combo.displayName +
     "；最终期望 " + combo.expectedValue.toFixed(4) +
     "；赔率 " + fmtOdds(combo.odds) +
     "；买 " + combo.units + " 注" +
@@ -1257,15 +1256,30 @@ function syncConfidenceControls(card, value, skipNumber) {
   if (range) range.value = safeValue;
   if (number && !skipNumber) number.value = safeValue;
 }
+function syncFavoredOptions(card, match) {
+  const favored = card.querySelector(".js-favored");
+  if (!favored) return;
+  getSelectedOutcomes(match).forEach(outcome => {
+    const option = favored.querySelector('option[value="' + outcome.key + '"]');
+    if (option) option.textContent = resultText(match, outcome.key);
+  });
+}
 function handleMatchInput(event) {
   const card = event.target.closest(".match");
   if (!card) return;
   const index = Number(card.dataset.index);
   const match = matches[index];
-  if (event.target.classList.contains("js-home")) match.home = event.target.value;
-  if (event.target.classList.contains("js-away")) match.away = event.target.value;
+  if (event.target.classList.contains("js-home")) {
+    match.home = event.target.value;
+    syncFavoredOptions(card, match);
+  }
+  if (event.target.classList.contains("js-away")) {
+    match.away = event.target.value;
+    syncFavoredOptions(card, match);
+  }
   if (event.target.classList.contains("js-odds")) {
     match.odds[event.target.dataset.key] = Number(event.target.value);
+    syncFavoredOptions(card, match);
   }
   if (event.target.classList.contains("js-confidence") || event.target.classList.contains("js-confidence-number")) {
     match.confidence = clampConfidence(event.target.value);
