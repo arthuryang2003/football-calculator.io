@@ -1348,7 +1348,7 @@ function handleMatchChange(event) {
   if (event.target.classList.contains("js-odds")) {
     if (!match.selectionTouched) autoSelectLowestTwo(match);
     updateDefaultFavoredOutcome(index);
-    renderMatches();
+    syncFavoredOptions(card, match);
     markDirty();
   }
   if (event.target.classList.contains("js-favored")) {
