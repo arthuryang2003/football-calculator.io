@@ -26,7 +26,7 @@
     .match-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
     .matches{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
     .match{border:1px solid var(--border);border-radius:12px;background:#fbfcfe;padding:12px}
-    .team-row,.odds-row{display:grid;gap:8px;margin-bottom:10px}.team-row{grid-template-columns:1fr 1fr}.odds-row{grid-template-columns:repeat(3,1fr)}
+    .team-row,.odds-row{display:grid;gap:8px;margin-bottom:10px}.team-row{grid-template-columns:1fr 1fr}.odds-row{grid-template-columns:repeat(4,1fr)}
     .checks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
     .check{display:flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);font-size:15px;user-select:none}
     .check input{width:18px;min-height:18px;height:18px;accent-color:var(--accent)}
@@ -154,15 +154,16 @@ const el = {
 
 function createDefaultMatch(index) {
   const samples = [
-    { home: "主队A", away: "客队A", odds: { win: 1.68, draw: 3.35, lose: 4.20 } },
-    { home: "主队B", away: "客队B", odds: { win: 2.05, draw: 3.10, lose: 3.25 } },
-    { home: "主队C", away: "客队C", odds: { win: 1.92, draw: 3.20, lose: 3.60 } }
+    { home: "主队A", away: "客队A", handicap: 0, odds: { win: 1.68, draw: 3.35, lose: 4.20 } },
+    { home: "主队B", away: "客队B", handicap: 0, odds: { win: 2.05, draw: 3.10, lose: 3.25 } },
+    { home: "主队C", away: "客队C", handicap: 0, odds: { win: 1.92, draw: 3.20, lose: 3.60 } }
   ];
-  const sample = samples[index] || { home: "主队" + (index + 1), away: "客队" + (index + 1), odds: { win: 1.80, draw: 3.20, lose: 3.80 } };
+  const sample = samples[index] || { home: "主队" + (index + 1), away: "客队" + (index + 1), handicap: 0, odds: { win: 1.80, draw: 3.20, lose: 3.80 } };
   const match = {
     id: Date.now() + Math.random(),
     home: sample.home,
     away: sample.away,
+    handicap: sample.handicap || 0,
     odds: { ...sample.odds },
     selected: [],
     selectionTouched: false,
@@ -245,12 +246,28 @@ function getDrawSubject(match) {
   }
   return match.home;
 }
-function betCodeText(key) {
-  if (key === "win") return "\u4e3b\u80dc";
-  if (key === "draw") return "\u4e3b\u5e73";
-  return "\u4e3b\u8d1f";
+function formatHandicap(value) {
+  const number = Number(value) || 0;
+  if (number > 0) return "+" + number;
+  return String(number);
+}
+function hasHandicap(match) {
+  return Math.abs(Number(match.handicap) || 0) > 1e-12;
+}
+function betCodeText(match, key) {
+  const prefix = hasHandicap(match) ? "让" : "主";
+  const handicapText = hasHandicap(match) ? "(" + formatHandicap(match.handicap) + ")" : "";
+  if (key === "win") return prefix + "胜" + handicapText;
+  if (key === "draw") return prefix + "平" + handicapText;
+  return prefix + "负" + handicapText;
 }
 function humanResultText(match, key) {
+  if (hasHandicap(match)) {
+    const h = formatHandicap(match.handicap);
+    if (key === "win") return match.home + h + "胜";
+    if (key === "draw") return match.home + h + "平";
+    return match.home + h + "负";
+  }
   if (key === "win") return match.home + "胜";
   if (key === "draw") return getDrawSubject(match) + "平";
   return match.away + "胜";
@@ -276,6 +293,10 @@ function renderMatches() {
         <div><label>客队</label><input class="js-away" type="text" value="${escapeHtml(match.away)}"></div>
       </div>
       <div class="odds-row">
+        <div>
+          <label>让球数</label>
+          <input class="js-handicap" type="number" inputmode="decimal" step="0.25" value="${match.handicap || 0}">
+        </div>
         ${OUTCOMES.map((o, outcomeIndex) => `
           <div><label>${o.label}赔率</label><input class="js-odds" data-key="${o.key}" type="number" inputmode="decimal" min="1.01" step="0.01" value="${match.odds[o.key]}"></div>
         `).join("")}
@@ -328,6 +349,7 @@ function readStateFromPage() {
     matches: matches.map((match, index) => ({
       ...match,
       index,
+      handicap: Number(match.handicap) || 0,
       home: String(match.home || "").trim() || "第" + (index + 1) + "场主队",
       away: String(match.away || "").trim() || "第" + (index + 1) + "场客队"
     }))
@@ -398,10 +420,10 @@ function generateCombos(inputMatches, settings) {
         next.push({
           outcomes: combo.outcomes.concat([{
             matchIndex,
-            matchLabel: match.home + " vs " + match.away,
+            matchLabel: match.home + " vs " + match.away + (hasHandicap(match) ? "（让球：" + formatHandicap(match.handicap) + "）" : ""),
             key: outcome.key,
             text: resultText(match, outcome.key),
-            betCode: betCodeText(outcome.key),
+            betCode: betCodeText(match, outcome.key),
             humanText: humanResultText(match, outcome.key),
             odds: Number(match.odds[outcome.key]),
             subjectiveProb,
@@ -499,6 +521,35 @@ function respectsExpectedOrder(combos, units) {
   }
   return true;
 }
+function shouldEnforceExpectedRateOrder(settings) {
+  return Number(settings.tiltRatio) > 1e-12;
+}
+function respectsExpectedRateOrder(evaluatedCombos, tolerance = 0.005) {
+  for (let i = 0; i < evaluatedCombos.length; i += 1) {
+    for (let j = 0; j < evaluatedCombos.length; j += 1) {
+      if (evaluatedCombos[i].expectedValue > evaluatedCombos[j].expectedValue + 1e-12) {
+        if (evaluatedCombos[i].rate + tolerance < evaluatedCombos[j].rate) {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+function computeExpectedRateOrderViolation(evaluatedCombos) {
+  let maxViolation = 0;
+  for (let i = 0; i < evaluatedCombos.length; i += 1) {
+    for (let j = 0; j < evaluatedCombos.length; j += 1) {
+      if (evaluatedCombos[i].expectedValue > evaluatedCombos[j].expectedValue + 1e-12) {
+        const violation = evaluatedCombos[j].rate - evaluatedCombos[i].rate;
+        if (violation > maxViolation) {
+          maxViolation = violation;
+        }
+      }
+    }
+  }
+  return maxViolation;
+}
 function findExpectedOrderViolation(combos, units) {
   let best = null;
   for (let i = 0; i < combos.length; i += 1) {
@@ -551,6 +602,8 @@ function evaluatePlan(combos, units, sortMode) {
   });
 
   const maxConfidenceComboRate = evaluatedCombos[maxConfidenceComboIndex].rate;
+  const expectedRateOrderViolation = computeExpectedRateOrderViolation(evaluatedCombos);
+  const satisfiesExpectedRateOrder = respectsExpectedRateOrder(evaluatedCombos, 0.005);
   let score = minRate;
   const plainAvgRate = plainRateSum / combos.length;
   if (sortMode === "avgRate") score = purchaseWeightedAvgRate;
@@ -571,6 +624,8 @@ function evaluatePlan(combos, units, sortMode) {
     maxConfidenceComboIndex,
     maxConfidenceComboRate,
     satisfiesExpectedOrder: !hasExpectedOrder(combos) || respectsExpectedOrder(combos, units),
+    expectedRateOrderViolation,
+    satisfiesExpectedRateOrder,
     maxGroupSpread: 0,
     maxGroupRateSpread: 0,
     score
@@ -581,17 +636,11 @@ function isBetterPlanBySortMode(candidate, current, settings) {
   const eps = 1e-12;
   const scoreSlack = 0.005;
   const maxUnits = Math.floor(settings.budgetMax / 2);
-  const minUsefulUnits = Math.min(maxUnits, Math.max(candidate.units.length, Math.floor(maxUnits * 0.1)));
-  const cUseful = candidate.totalUnits >= minUsefulUnits;
-  const rUseful = current.totalUnits >= minUsefulUnits;
-  if (cUseful && !rUseful) return true;
-  if (!cUseful && rUseful) return false;
-
-  if (settings.tiltRatio >= 0.95) {
-    const cFloorError = candidate.floorAdherenceError || 0;
-    const rFloorError = current.floorAdherenceError || 0;
-    if (cFloorError < rFloorError - 0.005) return true;
-    if (cFloorError > rFloorError + 0.005) return false;
+  if (shouldEnforceExpectedRateOrder(settings)) {
+    const cViolation = candidate.expectedRateOrderViolation || 0;
+    const rViolation = current.expectedRateOrderViolation || 0;
+    if (cViolation < rViolation - 0.005) return true;
+    if (cViolation > rViolation + 0.005) return false;
   }
 
   if (candidate.score > current.score + scoreSlack) return true;
@@ -654,6 +703,10 @@ function refineCandidateUnitList(bestUnits, minUnits, maxUnits, radius) {
 }
 function keepTopCandidates(candidates, limit, settings) {
   candidates.sort((a, b) => {
+    if (shouldEnforceExpectedRateOrder(settings)) {
+      const violationDiff = (a.expectedRateOrderViolation || 0) - (b.expectedRateOrderViolation || 0);
+      if (Math.abs(violationDiff) > 0.005) return violationDiff;
+    }
     if (Math.abs(b.score - a.score) > 1e-12) return b.score - a.score;
     const budgetUnits = Math.floor(settings.budgetMax / 2);
     const aGap = Math.abs(a.totalUnits - budgetUnits);
@@ -663,9 +716,14 @@ function keepTopCandidates(candidates, limit, settings) {
   });
   if (candidates.length > limit) candidates.length = limit;
 }
-function computeBestIntegerMinRate(combos, settings) {
+function computeMinimumUsefulUnits(combos, settings) {
+  const maxOdds = Math.max(...combos.map(combo => combo.odds));
+  const minUnitsByMaxOdds = Math.ceil(maxOdds);
+  return Math.max(combos.length, minUnitsByMaxOdds);
+}
+function computeBestIntegerMinRate(combos, settings, minUnitsOverride) {
   const maxUnits = Math.floor(settings.budgetMax / 2);
-  const minUnits = combos.length;
+  const minUnits = minUnitsOverride || combos.length;
   let bestPlan = null;
   const searchedUnits = new Set();
   function tryUnit(U) {
@@ -713,18 +771,11 @@ function allocateBalanceUnits(combos, units, count, totalUnits) {
 }
 function allocateTiltUnits(combos, units, count, adjustStrength) {
   if (count <= 0) return;
-  const values = combos.map(c => c.expectedValue);
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
-  let weights;
-  if (Math.abs(maxValue - minValue) < 1e-12) {
-    weights = combos.map(() => 1);
-  } else {
-    weights = combos.map(combo => {
-      const norm = (combo.expectedValue - minValue) / (maxValue - minValue);
-      return Math.pow(Math.max(0, norm), adjustStrength);
-    });
-  }
+  const minExpected = Math.min(...combos.map(c => c.expectedValue));
+  let weights = combos.map(combo => {
+    const advantage = Math.max(0, combo.expectedValue - minExpected);
+    return Math.pow(advantage, adjustStrength);
+  });
   let weightSum = weights.reduce((s, w) => s + w, 0);
   if (weightSum <= 1e-12) {
     weights = combos.map(() => 1);
@@ -764,6 +815,11 @@ function generateResidualAllocationPlan(combos, totalUnits, settings) {
 
   const plan = evaluatePlan(combos, units, settings.sortMode);
   if (plan.combos.some(combo => combo.rate + 1e-12 < settings.floorRate)) return null;
+  plan.expectedRateOrderViolation = computeExpectedRateOrderViolation(plan.combos);
+  plan.satisfiesExpectedRateOrder = respectsExpectedRateOrder(plan.combos, 0.005);
+  if (shouldEnforceExpectedRateOrder(settings) && !plan.satisfiesExpectedRateOrder) {
+    return null;
+  }
 
   plan.settings = settings;
   plan.baseUnits = baseUnits;
@@ -786,12 +842,22 @@ function generateTargetBasedPlan(combos, totalUnits, settings, metrics) {
 
 function optimizeWithRateFloor(combos, settings) {
   if (combos.length > 256) throw new Error("当前组合数为 " + combos.length + "，超过 256。请减少比赛数量或减少选择结果。");
+  const absoluteMinUnits = combos.length;
+  const minUnits = computeMinimumUsefulUnits(combos, settings);
   const maxUnits = Math.floor(settings.budgetMax / 2);
-  const minUnits = combos.length;
-  if (maxUnits < minUnits) throw new Error("预算上限不足。当前 " + combos.length + " 个组合至少需要 " + fmtMoney(combos.length * 2) + "。");
+  if (maxUnits < absoluteMinUnits) {
+    throw new Error("预算上限不足。当前 " + combos.length + " 个组合至少需要 " + fmtMoney(combos.length * 2) + "。");
+  }
+  if (maxUnits < minUnits) {
+    throw new Error(
+      "预算上限低于最低建议投入。当前最大串关赔率约为 " +
+      fmtOdds(Math.max(...combos.map(combo => combo.odds))) +
+      "，建议最低投入约为 " + fmtMoney(minUnits * 2) + "。"
+    );
+  }
 
   const theoreticalMaxMinRate = computeTheoreticalMaxMinRate(combos);
-  const integerInfo = computeBestIntegerMinRate(combos, settings);
+  const integerInfo = computeBestIntegerMinRate(combos, settings, minUnits);
   const tiltSpace = Math.max(0, integerInfo.bestMinRate - settings.floorRate);
   const metrics = { theoreticalMaxMinRate, integerMaxMinRate: integerInfo.bestMinRate, tiltSpace };
   const candidates = [];
@@ -825,6 +891,8 @@ function optimizeWithRateFloor(combos, settings) {
     feasible: Boolean(selected),
     theoreticalMaxMinRate,
     integerMaxMinRate: integerInfo.bestMinRate,
+    minimumUsefulUnits: minUnits,
+    minimumUsefulStake: minUnits * 2,
     tiltSpace,
     integerBestPlan: integerInfo.bestPlan,
     candidates,
@@ -834,6 +902,8 @@ function optimizeWithRateFloor(combos, settings) {
     settings,
     searchInfo: {
       comboCount: combos.length,
+      minimumUsefulUnits: minUnits,
+      minimumUsefulStake: minUnits * 2,
       unitCandidateCount: searchedUnits.size,
       mode: searchMode
     }
@@ -862,17 +932,26 @@ function getExpectedRankMap(combos) {
   });
   return ranks;
 }
+function formatExpectedRateOrderStatus(plan, settings) {
+  if (!plan) return "-";
+  if (!shouldEnforceExpectedRateOrder(settings)) return "未强制（均衡模式）";
+  return plan.satisfiesExpectedRateOrder ? "是" : "否";
+}
 function renderSummary(result, state) {
   const rec = result.recommended;
   const items = [
     ["推荐投入", rec ? fmtMoney(rec.stake) : "-"],
     ["总注数", rec ? rec.totalUnits + " 注" : "-"],
+    ["最低建议投入", result.minimumUsefulStake ? fmtMoney(result.minimumUsefulStake) : "-"],
+    ["最低建议总注数", result.minimumUsefulUnits ? result.minimumUsefulUnits + " 注" : "-"],
     ["理论均衡收益率", fmtRate(result.theoreticalMaxMinRate), result.theoreticalMaxMinRate >= 0 ? "positive" : "negative"],
     ["预算内整数可实现均衡收益率", fmtRate(result.integerMaxMinRate), result.integerMaxMinRate >= 0 ? "positive" : "negative"],
     ["可接受最低收益率", fmtRate(state.settings.floorRate), state.settings.floorRate >= 0 ? "positive" : "negative"],
     ["推荐方案最低收益率", rec ? fmtRate(rec.minRate) : "-", rec && rec.minRate >= 0 ? "positive" : rec ? "negative" : ""],
     ["投注加权平均收益率", rec ? fmtRate(rec.purchaseWeightedAvgRate) : "-", rec && rec.purchaseWeightedAvgRate >= 0 ? "positive" : rec ? "negative" : ""],
-    ["推荐方案最高收益率", rec ? fmtRate(rec.maxRate) : "-", rec && rec.maxRate >= 0 ? "positive" : rec ? "negative" : ""]
+    ["推荐方案最高收益率", rec ? fmtRate(rec.maxRate) : "-", rec && rec.maxRate >= 0 ? "positive" : rec ? "negative" : ""],
+    ["是否满足期望收益率排序", formatExpectedRateOrderStatus(rec, state.settings)],
+    ["最大期望排序违背", rec ? fmtRate(rec.expectedRateOrderViolation || 0) : "-"]
   ];
   el.summary.innerHTML = items.map(item => `
     <div class="stat"><div class="name">${item[0]}</div><div class="value ${item[2] || ""}">${item[1]}</div></div>
@@ -914,7 +993,8 @@ function buildCopyText(result, state) {
     const extra = getSelectedOutcomes(match).length === 2
       ? "；更看好：" + resultText(match, match.favoredOutcome) + "；信心：" + match.confidence + "%"
       : "";
-    return "第" + (index + 1) + " 场：" + match.home + " vs " + match.away + "；选择：" + selected + extra;
+    const handicapText = hasHandicap(match) ? "；让球：" + formatHandicap(match.handicap) : "";
+    return "第" + (index + 1) + " 场：" + match.home + " vs " + match.away + handicapText + "；选择：" + selected + extra;
   }).join("\n");
   const simpleRows = result.recommended ? sortCombosForDisplay(result.recommended.combos).map((combo, index) =>
     "编号 " + (index + 1) +
@@ -936,6 +1016,8 @@ function buildCopyText(result, state) {
 预算上限：${fmtMoney(state.settings.budgetMax)}
 推荐投入：${result.recommended ? fmtMoney(result.recommended.stake) : "-"}
 总注数：${result.recommended ? result.recommended.totalUnits + " 注" : "-"}
+最低建议投入：${result.minimumUsefulStake ? fmtMoney(result.minimumUsefulStake) : "-"}
+最低建议总注数：${result.minimumUsefulUnits ? result.minimumUsefulUnits + " 注" : "-"}
 可接受最低收益率：${fmtRate(state.settings.floorRate)}
 理论均衡收益率：${fmtRate(result.theoreticalMaxMinRate)}
 预算内整数可实现均衡收益率：${fmtRate(result.integerMaxMinRate)}
@@ -947,6 +1029,8 @@ function buildCopyText(result, state) {
 推荐方案最低收益率：${result.recommended ? fmtRate(result.recommended.minRate) : "-"}
 投注加权平均收益率：${result.recommended ? fmtRate(result.recommended.purchaseWeightedAvgRate) : "-"}
 推荐方案最高收益率：${result.recommended ? fmtRate(result.recommended.maxRate) : "-"}
+是否满足期望收益率排序：${formatExpectedRateOrderStatus(result.recommended, state.settings)}
+最大期望排序违背：${result.recommended ? fmtRate(result.recommended.expectedRateOrderViolation || 0) : "-"}
 搜索模式：${result.searchInfo ? result.searchInfo.mode : "-"}
 候选注数：${result.searchInfo ? result.searchInfo.unitCandidateCount + " 个" : "-"}
 最终推荐总注数：${result.recommended ? result.recommended.totalUnits + " 注" : "-"}
@@ -1049,6 +1133,10 @@ function handleMatchInput(event) {
   }
   if (event.target.classList.contains("js-away")) {
     match.away = event.target.value;
+    syncFavoredOptions(card, match);
+  }
+  if (event.target.classList.contains("js-handicap")) {
+    match.handicap = Number(event.target.value) || 0;
     syncFavoredOptions(card, match);
   }
   if (event.target.classList.contains("js-odds")) {
